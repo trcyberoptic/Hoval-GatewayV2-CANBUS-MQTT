@@ -30,9 +30,11 @@ DEBUG_CONSOLE = True      # Zeigt Werte im Terminal
 DEBUG_RAW = False         # Zeigt Hex-Code (für Debugging)
 
 # MQTT
-MQTT_ENABLED = True       
+MQTT_ENABLED = True
 MQTT_IP = '127.0.0.1'
 MQTT_PORT = 1883
+MQTT_USERNAME = ''         # MQTT Benutzername (leer lassen für anonymous)
+MQTT_PASSWORD = ''         # MQTT Passwort (leer lassen für anonymous)
 TOPIC_BASE = "hoval/homevent"
 
 # Speicher
@@ -284,11 +286,17 @@ def main():
     if MQTT_ENABLED:
         try:
             client = mqtt.Client()
+
+            # Authentifizierung setzen, falls konfiguriert
+            if MQTT_USERNAME and MQTT_PASSWORD:
+                client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+                print(f"MQTT: Verwende Authentifizierung (User: {MQTT_USERNAME})")
+
             client.connect(MQTT_IP, MQTT_PORT, 60)
             client.loop_start()
             print(f"MQTT verbunden ({MQTT_IP}).")
-        except:
-            print("MQTT nicht erreichbar -> Nur Konsolen-Ausgabe.")
+        except Exception as e:
+            print(f"MQTT nicht erreichbar -> Nur Konsolen-Ausgabe. ({e})")
 
     print("Starte Hoval Universal Listener...")
     

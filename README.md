@@ -60,6 +60,8 @@ DEBUG_RAW = False                 # Hex-Dumps für Protokoll-Analyse
 MQTT_ENABLED = True               # MQTT-Publishing aktivieren
 MQTT_IP = '127.0.0.1'            # MQTT-Broker IP-Adresse
 MQTT_PORT = 1883                  # MQTT-Broker Port
+MQTT_USERNAME = ''                # MQTT-Benutzername (leer für anonymous)
+MQTT_PASSWORD = ''                # MQTT-Passwort (leer für anonymous)
 TOPIC_BASE = "hoval/homevent"     # MQTT-Topic-Präfix
 ```
 
@@ -94,6 +96,22 @@ Verbunden mit 10.0.0.95
 Drücken Sie `Ctrl+C` für einen sauberen Shutdown.
 
 ## MQTT-Integration
+
+### MQTT-Authentifizierung
+
+Das Gateway unterstützt sowohl anonyme als auch authentifizierte MQTT-Verbindungen:
+
+**Ohne Authentifizierung (Standard)**:
+```python
+MQTT_USERNAME = ''  # Leer lassen
+MQTT_PASSWORD = ''  # Leer lassen
+```
+
+**Mit Authentifizierung** (z.B. für Mosquitto mit Passwortdatei):
+```python
+MQTT_USERNAME = 'mein_benutzer'
+MQTT_PASSWORD = 'mein_passwort'
+```
 
 ### Topic-Struktur
 
@@ -235,12 +253,21 @@ Häufig verwendete Sensoren (alle Namen in Deutsch):
    mosquitto -v  # Test-Modus
    ```
 
-2. **Manueller Test**:
+2. **Authentifizierung erforderlich?**
+   - Prüfen Sie die Mosquitto-Konfiguration auf `allow_anonymous false`
+   - Falls aktiviert, setzen Sie `MQTT_USERNAME` und `MQTT_PASSWORD`
+
+3. **Manueller Test** (ohne Authentifizierung):
    ```bash
    mosquitto_sub -h 127.0.0.1 -t "hoval/#" -v
    ```
 
-3. **Fallback**: Gateway läuft auch ohne MQTT (nur Console-Ausgabe)
+4. **Manueller Test** (mit Authentifizierung):
+   ```bash
+   mosquitto_sub -h 127.0.0.1 -t "hoval/#" -v -u username -P password
+   ```
+
+5. **Fallback**: Gateway läuft auch ohne MQTT (nur Console-Ausgabe)
 
 ### Debug-Modus aktivieren
 
@@ -309,7 +336,13 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.0 (Aktuell)
+### Version 2.1 (Aktuell)
+- ✅ MQTT-Authentifizierung: Unterstützung für Username/Password
+- ✅ Neue Konfigurationsparameter: `MQTT_USERNAME` und `MQTT_PASSWORD`
+- ✅ Bessere Fehlermeldungen bei MQTT-Verbindungsproblemen
+- ✅ Dokumentation für Mosquitto mit Authentifizierung
+
+### Version 2.0
 - ✅ Hybrid-Modus: CSV + direkte Temperatur-Suche
 - ✅ Kein 0x00-Padding mehr erforderlich
 - ✅ 0.0°C ist jetzt ein gültiger Wert
