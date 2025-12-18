@@ -298,7 +298,7 @@ Beispiel:
 
 ## Lizenz
 
-Dieses Projekt steht unter der MIT-Lizenz (oder andere - bitte anpassen).
+Dieses Projekt steht unter der GPL.
 
 ## Support
 
