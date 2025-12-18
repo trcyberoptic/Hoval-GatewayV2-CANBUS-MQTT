@@ -25,26 +25,27 @@ Home Automation Systems
 
 ### Core Components
 
-**[hoval.py](hoval.py)** - Single monolithic application (202 lines) with 5 key functions:
+**[hoval.py](hoval.py)** - Single monolithic application (~310 lines) with 5 key functions:
 
-1. **`load_csv()`** - Loads [hoval_datapoints.csv](hoval_datapoints.csv) into `datapoint_map` dictionary, filtering blacklisted keywords
-2. **`decode_smart(raw_bytes, dp_info)`** - Decodes binary data based on type (U8, S16, U16, S32, U32, LIST) with decimal scaling
-3. **`process_stream(client, data)`** - Scans binary stream for 3-byte datapoint keys, extracts values
+1. **`load_csv()`** - Loads [hoval_datapoints.csv](hoval_datapoints.csv) into `datapoint_map` dictionary, filtering blacklisted keywords and Unit ID
+2. **`decode_smart(raw_bytes, dp_info)`** - Decodes binary data based on type (U8, S16, U16, S32, U32, LIST) with decimal scaling and byte-level 0xFF checks
+3. **`process_stream(client, data)`** - **Hybrid scanner** that accepts IDs with OR without 0x00 prefix (fallback for IDs 0-5)
 4. **`handle_output(client, name, value, unit)`** - Normalizes names (German umlauts → ASCII), deduplicates, publishes to MQTT
 5. **`main()`** - Orchestrates socket connection, streaming loop, and automatic reconnection
 
 **[hoval_datapoints.csv](hoval_datapoints.csv)** - Device configuration file (1,137 rows):
-- Semicolon-delimited, Latin-1 encoded
-- Key columns: `UnitName`, `DatapointId`, `DatapointName`, `TypeName`, `Decimal`, `unit`
-- Only rows with `UnitName='HV'` are loaded
+- Semicolon-delimited, **UTF-8 encoded**
+- Key columns: `UnitName`, `UnitId`, `DatapointId`, `DatapointName`, `TypeName`, `Decimal`, `unit`
+- Only rows with `UnitName='HV'` **and** matching `UNIT_ID_FILTER` are loaded
 - All datapoint names are in German (e.g., "Außenluft Temp", "Lüftung", "Betriebswahl")
 
 ## Binary Protocol Details
 
 ### Frame Structure
 - Frames are delimited by `\xff\x01` byte sequence
-- Datapoint identifiers are 3 bytes: `\x00` + 2-byte big-endian ID
-- Value bytes follow immediately after the 3-byte key
+- **Primary format**: Datapoint identifiers are 3 bytes: `\x00` + 2-byte big-endian ID
+- **Fallback format** (IDs 0-5 only): Direct 2-byte big-endian ID without prefix
+- Value bytes follow immediately after the ID
 - Byte lengths: 1 byte (U8), 2 bytes (S16/U16), 4 bytes (S32/U32)
 
 ### Type System
@@ -62,23 +63,36 @@ Values are scaled by dividing by `10^decimal` (from CSV configuration).
 
 The application implements multiple filtering layers to prevent invalid data:
 
-### 1. Load-Time Blacklist ([hoval.py:54](hoval.py#L54))
+### 1. Unit ID Filter ([hoval.py:54-57](hoval.py#L54-L57))
+- Only datapoints from `UNIT_ID_FILTER` (default: 513) are loaded
+- Prevents duplicate datapoints from multiple units
+
+### 2. Load-Time Blacklist ([hoval.py:63](hoval.py#L63))
 - Keywords in `IGNORE_KEYWORDS` (default: `["VOC", "voc", "Luftqualität"]`)
 - Datapoints with blacklisted names are never loaded into memory
 
-### 2. Null Value Detection ([hoval.py:77-101](hoval.py#L77-L101))
+### 3. Byte-Level Null Detection ([hoval.py:106-109](hoval.py#L106-L109))
+- **NEW**: S16 values are checked for individual `0xFF` bytes BEFORE unpacking
+- Prevents `-25.4°C` (from `0xFF02`) being misinterpreted as valid
+- Also filters `0x0000` in NOPREFIX path
+
+### 4. Type-Specific Null Values
 - All `0xFF` byte patterns are rejected
 - Type-specific null values (see table above) are filtered
 
-### 3. Anomaly Detection ([hoval.py:110-118](hoval.py#L110-L118))
+### 5. Anomaly Detection ([hoval.py:147-155](hoval.py#L147-L155))
 - `25.5°C` temperature readings (common error value)
 - `112.0` values (erroneous VOC readings)
-- `0.0°C` on "Aussen" (outdoor) sensors (spike filtering)
+- **REMOVED**: `0.0°C` filter (this is a valid winter temperature!)
 
-### 4. Range Validation ([hoval.py:139-141](hoval.py#L139-L141))
-- Outdoor temperatures must be in range `-40°C` to `50°C`
+### 6. Range Validation ([hoval.py:188-193](hoval.py#L188-L193))
+- Temperatures must be in range `-40°C` to `70°C`
 
-### 5. Change Detection ([hoval.py:148-149](hoval.py#L148-L149))
+### 7. Jump Detection ([hoval.py:227-232](hoval.py#L227-L232))
+- **NEW**: For NOPREFIX path, rejects temperature changes > 20°C
+- Prevents false positives from random byte patterns
+
+### 8. Change Detection ([hoval.py:240-241](hoval.py#L240-L241))
 - Only publish when value changes (reduces MQTT traffic)
 - Uses `last_sent` dictionary to track previous values
 
@@ -88,22 +102,23 @@ All configuration is at the top of [hoval.py](hoval.py) (lines 9-31):
 
 ```python
 # Device connection
-HOVAL_IP = '10.0.0.95'           # Hoval device IP
-HOVAL_PORT = 3113                 # CAN-BUS TCP port
-CSV_FILE = 'hoval_datapoints.csv' # Device mapping file
+HOVAL_IP = '10.0.0.95'            # Hoval device IP
+HOVAL_PORT = 3113                  # CAN-BUS TCP port
+CSV_FILE = 'hoval_datapoints.csv'  # Device mapping file
 
 # Filtering
+UNIT_ID_FILTER = 513               # Only load this Unit ID (prevents duplicates)
 IGNORE_KEYWORDS = ["VOC", "voc", "Luftqualität"]
 
 # Debugging
-DEBUG_CONSOLE = True              # Print values to terminal
-DEBUG_RAW = False                 # Print hex data (for protocol analysis)
+DEBUG_CONSOLE = True               # Print values to terminal
+DEBUG_RAW = False                  # Print hex data (for protocol analysis)
 
 # MQTT
-MQTT_ENABLED = True               # Enable MQTT publishing
-MQTT_IP = '127.0.0.1'            # MQTT broker address
-MQTT_PORT = 1883                  # MQTT broker port
-TOPIC_BASE = "hoval/homevent"     # MQTT topic prefix
+MQTT_ENABLED = True                # Enable MQTT publishing
+MQTT_IP = '127.0.0.1'             # MQTT broker address
+MQTT_PORT = 1883                   # MQTT broker port
+TOPIC_BASE = "hoval/homevent"      # MQTT topic prefix
 ```
 
 ## Running the Application
@@ -121,13 +136,14 @@ python hoval.py
 ### Expected Output
 ```
 Lade CSV...
-1136 Datenpunkte geladen (VOC ignoriert).
+65 Datenpunkte geladen (Unit 513, VOC ignoriert).
 MQTT verbunden (127.0.0.1).
 Starte Hoval Universal Listener...
 Verbunden mit 10.0.0.95
- [LOG] Außenluft Temp              : 12.5 °C
- [LOG] Abluft Temp                 : 21.3 °C
- [LOG] Lüftungsmodulation          : 45 %
+ [LOG] Temperatur Aussenluft         : 9.3 °C
+ [LOG] Temperatur Abluft             : 22.1 °C
+ [LOG] Lüftungsmodulation            : 45 %
+ [LOG] Feuchtigkeit Abluft           : 42 %
 ```
 
 ### Stopping

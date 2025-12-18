@@ -218,6 +218,12 @@ def process_stream(client, data):
 
                 if i + 2 + byte_len <= len(data):
                     raw_bytes = data[i+2 : i+2+byte_len]
+
+                    # Extra-Check für NOPREFIX: 0x0000 ist auch ein Fehlercode
+                    if raw_bytes == b'\x00\x00':
+                        i += 1
+                        continue
+
                     value = decode_smart(raw_bytes, dp)
 
                     if value is not None:
