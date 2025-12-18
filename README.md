@@ -104,7 +104,7 @@ Drücken Sie `Ctrl+C` für einen sauberen Shutdown.
 Beispiele:
 - `hoval/homevent/aussenluft_temp`
 - `hoval/homevent/abluft_temp`
-- `hoval/homevent_lueftungsmodulation`
+- `hoval/homevent/lueftungsmodulation`
 
 ### Nachrichtenformat
 
