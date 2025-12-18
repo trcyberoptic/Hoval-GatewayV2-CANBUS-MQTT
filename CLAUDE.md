@@ -103,7 +103,7 @@ The application implements multiple filtering layers to prevent invalid data (9 
 
 ## Configuration
 
-All configuration is at the top of [hoval.py](hoval.py) (lines 9-31):
+All configuration is at the top of [hoval.py](hoval.py) (lines 9-38):
 
 ```python
 # Device connection
@@ -123,6 +123,8 @@ DEBUG_RAW = False                  # Print hex data (for protocol analysis)
 MQTT_ENABLED = True                # Enable MQTT publishing
 MQTT_IP = '127.0.0.1'             # MQTT broker address
 MQTT_PORT = 1883                   # MQTT broker port
+MQTT_USERNAME = ''                 # MQTT username (empty for anonymous)
+MQTT_PASSWORD = ''                 # MQTT password (empty for anonymous)
 TOPIC_BASE = "hoval/homevent"      # MQTT topic prefix
 ```
 
@@ -184,6 +186,7 @@ German datapoint names are normalized for MQTT topics:
 - **Socket timeout**: 15 seconds
 - **Reconnection delay**: 10 seconds after any exception
 - **MQTT fallback**: If broker unreachable, continues in console-only mode
+- **MQTT authentication**: Supports both anonymous and authenticated connections via `username_pw_set()`
 - **CSV validation**: Checks file existence before loading
 - **Silent parsing errors**: Invalid datapoints are skipped, not fatal
 
