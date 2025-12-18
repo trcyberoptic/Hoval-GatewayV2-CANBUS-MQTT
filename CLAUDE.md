@@ -25,13 +25,14 @@ Home Automation Systems
 
 ### Core Components
 
-**[hoval.py](hoval.py)** - Single monolithic application (~310 lines) with 5 key functions:
+**[hoval.py](hoval.py)** - Single monolithic application (~380 lines) with 6 key functions:
 
 1. **`load_csv()`** - Loads [hoval_datapoints.csv](hoval_datapoints.csv) into `datapoint_map` dictionary, filtering blacklisted keywords and Unit ID
 2. **`decode_smart(raw_bytes, dp_info)`** - Decodes binary data based on type (U8, S16, U16, S32, U32, LIST) with decimal scaling and byte-level 0xFF checks
 3. **`process_stream(client, data)`** - **Hybrid scanner** that accepts IDs with OR without 0x00 prefix (fallback for IDs 0-5)
-4. **`handle_output(client, name, value, unit)`** - Normalizes names (German umlauts → ASCII), deduplicates, publishes to MQTT
-5. **`main()`** - Orchestrates socket connection, streaming loop, and automatic reconnection
+4. **`publish_homeassistant_discovery(client, clean_name, name, unit)`** - **NEW**: Publishes Home Assistant MQTT Discovery config (once per sensor)
+5. **`handle_output(client, name, value, unit)`** - Normalizes names (German umlauts → ASCII), deduplicates, publishes to MQTT with retained flag
+6. **`main()`** - Orchestrates socket connection, streaming loop, and automatic reconnection
 
 **[hoval_datapoints.csv](hoval_datapoints.csv)** - Device configuration file (1,137 rows):
 - Semicolon-delimited, **UTF-8 encoded**
@@ -103,7 +104,7 @@ The application implements multiple filtering layers to prevent invalid data (9 
 
 ## Configuration
 
-All configuration is at the top of [hoval.py](hoval.py) (lines 9-38):
+All configuration is at the top of [hoval.py](hoval.py) (lines 9-40):
 
 ```python
 # Device connection
@@ -126,6 +127,8 @@ MQTT_PORT = 1883                   # MQTT broker port
 MQTT_USERNAME = ''                 # MQTT username (empty for anonymous)
 MQTT_PASSWORD = ''                 # MQTT password (empty for anonymous)
 TOPIC_BASE = "hoval/homevent"      # MQTT topic prefix
+MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery
+HOMEASSISTANT_PREFIX = "homeassistant"  # Discovery prefix
 ```
 
 ## Running the Application
@@ -162,7 +165,7 @@ Note: The initial 0.0°C reading that sometimes appears at startup is now automa
 
 ## MQTT Message Format
 
-Published messages use JSON format:
+Published messages use JSON format with **retained flag**:
 ```json
 {
   "value": 21.3,
@@ -173,6 +176,46 @@ Published messages use JSON format:
 Topic structure: `{TOPIC_BASE}/{normalized_name}`
 
 Example: `hoval/homevent/aussenluft_temp`
+
+## Home Assistant Auto-Discovery
+
+The application automatically publishes Home Assistant MQTT Discovery configuration for each sensor on first appearance. This eliminates the need for manual sensor configuration in Home Assistant.
+
+### Discovery Topics
+Format: `{HOMEASSISTANT_PREFIX}/sensor/hoval/{sensor_name}/config`
+
+Example: `homeassistant/sensor/hoval/aussenluft_temp/config`
+
+### Discovery Payload
+```json
+{
+  "name": "Hoval Außenluft Temp",
+  "unique_id": "hoval_aussenluft_temp",
+  "state_topic": "hoval/homevent/aussenluft_temp",
+  "value_template": "{{ value_json.value }}",
+  "unit_of_measurement": "°C",
+  "device_class": "temperature",
+  "icon": "mdi:thermometer",
+  "device": {
+    "identifiers": ["hoval_homevent"],
+    "name": "Hoval HomeVent",
+    "manufacturer": "Hoval",
+    "model": "HomeVent"
+  }
+}
+```
+
+### Automatic Device Class Assignment
+- **Temperature sensors** (`°C`): `device_class: temperature`, icon: `mdi:thermometer`
+- **Humidity sensors** (`%` + "feucht"): `device_class: humidity`, icon: `mdi:water-percent`
+- **Ventilation** (`%` + "lueft"): icon: `mdi:fan`
+- **CO2 sensors**: `device_class: carbon_dioxide`, icon: `mdi:molecule-co2`
+- **VOC sensors**: `device_class: volatile_organic_compounds`, icon: `mdi:air-filter`
+
+### State Management
+- **`discovered_topics`** set tracks which sensors have been discovered
+- Discovery config is only published once per sensor (on first value)
+- All discovery messages are retained to survive broker restarts
 
 ### Name Normalization
 German datapoint names are normalized for MQTT topics:
@@ -211,9 +254,10 @@ All device datapoint names and comments are in German. Key terms:
 - **Betriebswahl** - Operating mode selection
 
 ### State Management
-Two global dictionaries maintain state:
+Three global data structures maintain state:
 - **`datapoint_map`** - CSV configuration cache (loaded once at startup)
 - **`last_sent`** - Change detection cache (prevents duplicate MQTT publishes)
+- **`discovered_topics`** - Set of sensor names that have been discovered (prevents duplicate discovery configs)
 
 ### Protocol Analysis
 Enable `DEBUG_RAW = True` to view hex dumps of binary protocol data for debugging or reverse engineering.
