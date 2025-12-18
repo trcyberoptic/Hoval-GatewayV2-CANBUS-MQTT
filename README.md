@@ -5,7 +5,8 @@ Ein Python-basiertes Gateway, das Hoval Lüftungs-/Heizungssysteme (HV-Geräte) 
 ## Features
 
 - **Echtzeit-Datenübertragung**: Kontinuierliches Auslesen von Sensor- und Statusdaten
-- **MQTT-Integration**: Publiziert alle Werte als JSON-Nachrichten
+- **MQTT-Integration**: Publiziert alle Werte als JSON-Nachrichten mit Retained Flag
+- **Home Assistant Auto-Discovery**: Automatische Sensor-Registrierung - keine manuelle Konfiguration nötig!
 - **Intelligente Filterung**: 9-schichtige Fehlercode-Erkennung und Plausibilitätsprüfung
 - **Hybrid-Modus**: CSV-basierte Datenpunkt-Konfiguration + direkte Temperatur-Erfassung
 - **Automatische Wiederverbindung**: Robuste Fehlerbehandlung bei Netzwerkproblemen
@@ -63,6 +64,8 @@ MQTT_PORT = 1883                  # MQTT-Broker Port
 MQTT_USERNAME = ''                # MQTT-Benutzername (leer für anonymous)
 MQTT_PASSWORD = ''                # MQTT-Passwort (leer für anonymous)
 TOPIC_BASE = "hoval/homevent"     # MQTT-Topic-Präfix
+MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery
+HOMEASSISTANT_PREFIX = "homeassistant"  # Discovery Prefix
 ```
 
 ## Verwendung
@@ -137,7 +140,38 @@ Alle Werte werden als JSON publiziert:
 
 ### Home Assistant Integration
 
-Beispiel-Konfiguration für `configuration.yaml`:
+#### Automatische Erkennung (Empfohlen!)
+
+Das Gateway unterstützt **Home Assistant MQTT Discovery**. Alle Sensoren werden automatisch erkannt und hinzugefügt - **keine manuelle Konfiguration erforderlich**!
+
+**Voraussetzungen**:
+- MQTT-Integration in Home Assistant aktiviert
+- `MQTT_HOMEASSISTANT_DISCOVERY = True` (Standard)
+
+**So funktioniert's**:
+1. Gateway starten
+2. Sobald der erste Wert für einen Sensor empfangen wird, publiziert das Gateway automatisch die Discovery-Konfiguration
+3. Home Assistant erkennt den neuen Sensor und fügt ihn automatisch hinzu
+4. Alle Sensoren erscheinen unter einem gemeinsamen Device: **"Hoval HomeVent"**
+
+**Features der Auto-Discovery**:
+- ✅ Automatische `device_class` Zuweisung (temperature, humidity, etc.)
+- ✅ Passende Icons (Thermometer, Wassertropfen, Lüfter, etc.)
+- ✅ Alle Sensoren gruppiert unter einem Device
+- ✅ Eindeutige IDs für stabile Entity-Namen
+- ✅ Retained Messages - Sensoren bleiben nach Neustart erhalten
+
+**Ausgabe beim Start**:
+```
+[LOG] Temperatur Aussenluft         : 9.6 °C
+[DISCOVERY] Home Assistant Entity: Temperatur Aussenluft
+[LOG] Temperatur Abluft             : 22.3 °C
+[DISCOVERY] Home Assistant Entity: Temperatur Abluft
+```
+
+#### Manuelle Konfiguration (Optional)
+
+Falls Sie Auto-Discovery deaktivieren (`MQTT_HOMEASSISTANT_DISCOVERY = False`), können Sie die Sensoren manuell in `configuration.yaml` definieren:
 
 ```yaml
 mqtt:
@@ -336,7 +370,14 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.1 (Aktuell)
+### Version 2.2 (Aktuell)
+- ✅ **Home Assistant MQTT Auto-Discovery**: Automatische Sensor-Registrierung ohne manuelle Konfiguration
+- ✅ **Retained Messages**: Alle MQTT-Nachrichten werden persistent gespeichert
+- ✅ **Smart Device Grouping**: Alle Sensoren erscheinen unter einem gemeinsamen Device
+- ✅ **Automatische device_class und Icons**: Intelligente Zuweisung basierend auf Sensor-Typ
+- ✅ Discovery nur beim ersten Wert pro Sensor (Performance-Optimierung)
+
+### Version 2.1
 - ✅ MQTT-Authentifizierung: Unterstützung für Username/Password
 - ✅ Neue Konfigurationsparameter: `MQTT_USERNAME` und `MQTT_PASSWORD`
 - ✅ Bessere Fehlermeldungen bei MQTT-Verbindungsproblemen

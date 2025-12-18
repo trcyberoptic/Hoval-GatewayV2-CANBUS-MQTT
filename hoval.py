@@ -36,10 +36,13 @@ MQTT_PORT = 1883
 MQTT_USERNAME = ''         # MQTT Benutzername (leer lassen für anonymous)
 MQTT_PASSWORD = ''         # MQTT Passwort (leer lassen für anonymous)
 TOPIC_BASE = "hoval/homevent"
+MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery aktivieren
+HOMEASSISTANT_PREFIX = "homeassistant"  # Home Assistant Discovery Prefix
 
 # Speicher
 datapoint_map = {}
 last_sent = {}
+discovered_topics = set()  # Bereits registrierte Topics für Home Assistant
 
 # --- CSV LADEN ---
 def load_csv():
@@ -256,6 +259,70 @@ def process_stream(client, data):
 
         i += 1
 
+def publish_homeassistant_discovery(client, clean_name, name, unit):
+    """
+    Publiziert Home Assistant Auto-Discovery Konfiguration.
+    Wird nur einmal pro Topic aufgerufen.
+    """
+    if not MQTT_HOMEASSISTANT_DISCOVERY or clean_name in discovered_topics:
+        return
+
+    # Bestimme device_class und icon basierend auf Einheit und Namen
+    device_class = None
+    icon = None
+
+    if unit == "°C" or "temp" in clean_name.lower():
+        device_class = "temperature"
+        icon = "mdi:thermometer"
+    elif unit == "%" and ("feucht" in clean_name.lower() or "humidity" in clean_name.lower()):
+        device_class = "humidity"
+        icon = "mdi:water-percent"
+    elif unit == "%" and "lueft" in clean_name.lower():
+        icon = "mdi:fan"
+    elif "co2" in clean_name.lower():
+        device_class = "carbon_dioxide"
+        icon = "mdi:molecule-co2"
+    elif "voc" in clean_name.lower():
+        device_class = "volatile_organic_compounds"
+        icon = "mdi:air-filter"
+
+    # Erstelle eindeutige ID für Home Assistant
+    unique_id = f"hoval_{clean_name}"
+
+    # Discovery Topic
+    component = "sensor"
+    discovery_topic = f"{HOMEASSISTANT_PREFIX}/{component}/hoval/{clean_name}/config"
+
+    # Discovery Payload
+    config = {
+        "name": f"Hoval {name}",
+        "unique_id": unique_id,
+        "state_topic": f"{TOPIC_BASE}/{clean_name}",
+        "value_template": "{{ value_json.value }}",
+        "unit_of_measurement": unit,
+        "device": {
+            "identifiers": ["hoval_homevent"],
+            "name": "Hoval HomeVent",
+            "manufacturer": "Hoval",
+            "model": "HomeVent"
+        }
+    }
+
+    if device_class:
+        config["device_class"] = device_class
+    if icon:
+        config["icon"] = icon
+
+    # Publiziere Discovery Config als retained message
+    try:
+        client.publish(discovery_topic, json.dumps(config), retain=True)
+        discovered_topics.add(clean_name)
+        if DEBUG_CONSOLE:
+            print(f" [DISCOVERY] Home Assistant Entity: {name}")
+    except Exception as e:
+        if DEBUG_CONSOLE:
+            print(f" [DISCOVERY ERROR] {e}")
+
 def handle_output(client, name, value, unit):
     clean_name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss").replace(".", "").replace("/", "_").lower()
 
@@ -274,9 +341,13 @@ def handle_output(client, name, value, unit):
 
         if MQTT_ENABLED and client:
             try:
+                # Home Assistant Auto-Discovery (nur beim ersten Mal)
+                publish_homeassistant_discovery(client, clean_name, name, unit)
+
+                # Publiziere Wert als retained message
                 topic = f"{TOPIC_BASE}/{clean_name}"
                 payload = json.dumps({"value": value, "unit": unit})
-                client.publish(topic, payload)
+                client.publish(topic, payload, retain=True)
             except: pass
 
 def main():
