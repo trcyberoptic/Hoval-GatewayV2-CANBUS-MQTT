@@ -61,7 +61,7 @@ Values are scaled by dividing by `10^decimal` (from CSV configuration).
 
 ## Filtering Logic
 
-The application implements multiple filtering layers to prevent invalid data:
+The application implements multiple filtering layers to prevent invalid data (9 layers total):
 
 ### 1. Unit ID Filter ([hoval.py:54-57](hoval.py#L54-L57))
 - Only datapoints from `UNIT_ID_FILTER` (default: 513) are loaded
@@ -88,11 +88,16 @@ The application implements multiple filtering layers to prevent invalid data:
 ### 6. Range Validation ([hoval.py:188-193](hoval.py#L188-L193))
 - Temperatures must be in range `-40°C` to `70°C`
 
-### 7. Jump Detection ([hoval.py:227-232](hoval.py#L227-L232))
+### 7. Jump Detection ([hoval.py:238-243](hoval.py#L238-L243))
 - **NEW**: For NOPREFIX path, rejects temperature changes > 20°C
 - Prevents false positives from random byte patterns
 
-### 8. Change Detection ([hoval.py:240-241](hoval.py#L240-L241))
+### 8. Initial Value Filter ([hoval.py:244-249](hoval.py#L244-L249))
+- **NEW**: Filters 0.0°C on first reading (when no previous value exists)
+- Common error code at connection startup
+- After first valid reading, normal jump detection applies
+
+### 9. Change Detection ([hoval.py:264-265](hoval.py#L264-L265))
 - Only publish when value changes (reduces MQTT traffic)
 - Uses `last_sent` dictionary to track previous values
 
@@ -136,15 +141,19 @@ python hoval.py
 ### Expected Output
 ```
 Lade CSV...
-65 Datenpunkte geladen (Unit 513, VOC ignoriert).
+64 Datenpunkte geladen (Unit 513, VOC ignoriert).
 MQTT verbunden (127.0.0.1).
 Starte Hoval Universal Listener...
 Verbunden mit 10.0.0.95
- [LOG] Temperatur Aussenluft         : 9.3 °C
- [LOG] Temperatur Abluft             : 22.1 °C
+ [LOG] Status Lüftungsregelung       : 1
  [LOG] Lüftungsmodulation            : 45 %
+ [LOG] Feuchte Sollwert              : 55 %
+ [LOG] Temperatur Aussenluft         : 9.6 °C
  [LOG] Feuchtigkeit Abluft           : 42 %
+ [LOG] Temperatur Abluft             : 22.3 °C
 ```
+
+Note: The initial 0.0°C reading that sometimes appears at startup is now automatically filtered out by the Initial Value Filter (Layer 8).
 
 ### Stopping
 - Press `Ctrl+C` to gracefully shutdown

@@ -6,16 +6,17 @@ Ein Python-basiertes Gateway, das Hoval Lüftungs-/Heizungssysteme (HV-Geräte) 
 
 - **Echtzeit-Datenübertragung**: Kontinuierliches Auslesen von Sensor- und Statusdaten
 - **MQTT-Integration**: Publiziert alle Werte als JSON-Nachrichten
-- **Intelligente Filterung**: Mehrschichtige Fehlercode-Erkennung und Plausibilitätsprüfung
+- **Intelligente Filterung**: 9-schichtige Fehlercode-Erkennung und Plausibilitätsprüfung
 - **Hybrid-Modus**: CSV-basierte Datenpunkt-Konfiguration + direkte Temperatur-Erfassung
 - **Automatische Wiederverbindung**: Robuste Fehlerbehandlung bei Netzwerkproblemen
 - **Deutsche Datenpunkt-Namen**: Automatische Normalisierung für MQTT (Umlaute → ASCII)
+- **Kein MODBUS-Gateway nötig**: Direktverbindung über Hoval Netzwerk-Modul (LAN/WIFI)
 
 ## Voraussetzungen
 
 ### Hardware
 - Hoval Lüftungsgerät (HomeVent Serie) mit CAN-BUS-Schnittstelle
-- Netzwerkverbindung zum Hoval-Gerät (Ethernet/IP)
+- **Hoval Netzwerk-Modul (LAN oder WIFI)** - kein MODBUS-Gateway erforderlich!
 - MQTT-Broker (z.B. Mosquitto)
 
 ### Software
@@ -74,17 +75,19 @@ python hoval.py
 
 ```
 Lade CSV...
-1136 Datenpunkte geladen (VOC ignoriert).
+64 Datenpunkte geladen (Unit 513, VOC ignoriert).
 MQTT verbunden (127.0.0.1).
 Starte Hoval Universal Listener...
 Verbunden mit 10.0.0.95
- [LOG] Außenluft Temp              : 12.5 °C
- [LOG] Abluft Temp                 : 21.3 °C
- [LOG] Fortluft Temp               : 14.8 °C
- [LOG] Zuluft Temp                 : 20.1 °C
- [LOG] Lüftungsmodulation          : 45 %
- [LOG] Temp_ID_0                   : 12.5 °C
+ [LOG] Status Lüftungsregelung       : 1
+ [LOG] Lüftungsmodulation            : 45 %
+ [LOG] Feuchte Sollwert              : 55 %
+ [LOG] Temperatur Aussenluft         : 9.6 °C
+ [LOG] Feuchtigkeit Abluft           : 42 %
+ [LOG] Temperatur Abluft             : 22.3 °C
 ```
+
+**Hinweis**: Die initiale 0.0°C-Anzeige, die manchmal beim Start erscheint, wird automatisch durch den Initial Value Filter (Schicht 8) herausgefiltert.
 
 ### Beenden
 
