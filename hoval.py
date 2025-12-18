@@ -241,6 +241,12 @@ def process_stream(client, data):
                             if abs(value - prev_val) > 20:
                                 i += 1
                                 continue
+                        else:
+                            # Beim ersten Wert: 0.0°C ist sehr verdächtig (oft Fehlercode)
+                            # Nur akzeptieren wenn es der einzige Wert in diesem Frame ist
+                            if value == 0.0 and ("Temp" in dp['name'] or "Aussen" in dp['name']):
+                                i += 1
+                                continue
 
                         handle_output(client, dp['name'], value, dp['unit'])
                         i += 2 + byte_len
