@@ -23,7 +23,7 @@ UNIT_ID_FILTER = 513
 # --- BLACKLIST ---
 # Datenpunkte, deren Name eines dieser Wörter enthält, werden IGNORIERT.
 # Hier "VOC" eintragen, wenn nicht verbaut.
-IGNORE_KEYWORDS = ["VOC", "voc", "Luftqualität"]
+IGNORE_KEYWORDS = ["CO2", "VOC", "voc", "Luftqualität"]
 
 # Logging
 DEBUG_CONSOLE = True      # Zeigt Werte im Terminal
@@ -31,7 +31,7 @@ DEBUG_RAW = False         # Zeigt Hex-Code (für Debugging)
 
 # MQTT
 MQTT_ENABLED = True
-MQTT_IP = '127.0.0.1'
+MQTT_IP = 'homeassistant'
 MQTT_PORT = 1883
 MQTT_USERNAME = ''         # MQTT Benutzername (leer lassen für anonymous)
 MQTT_PASSWORD = ''         # MQTT Passwort (leer lassen für anonymous)
