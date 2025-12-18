@@ -81,10 +81,10 @@ The application implements multiple filtering layers to prevent invalid data (9 
 - All `0xFF` byte patterns are rejected
 - Type-specific null values (see table above) are filtered
 
-### 5. Anomaly Detection ([hoval.py:147-155](hoval.py#L147-L155))
+### 5. Anomaly Detection ([hoval.py:147-165](hoval.py#L147-L165))
 - `25.5°C` temperature readings (common error value)
 - `112.0` values (erroneous VOC readings)
-- **REMOVED**: `0.0°C` filter (this is a valid winter temperature!)
+- `0.0°C` for outdoor temperature ("Aussen") - common error code, real outdoor 0°C is rare enough to filter
 
 ### 6. Range Validation ([hoval.py:188-193](hoval.py#L188-L193))
 - Temperatures must be in range `-40°C` to `70°C`
