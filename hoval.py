@@ -4,21 +4,30 @@ import csv
 import json
 import os
 import time
+import sys
 import paho.mqtt.client as mqtt
+
+# UTF-8 Encoding für Terminal sicherstellen
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 # --- KONFIGURATION ---
 HOVAL_IP = '10.0.0.95'
 HOVAL_PORT = 3113
 CSV_FILE = 'hoval_datapoints.csv'
 
+# --- FILTER ---
+# Nur diese UnitId laden (z.B. 513)
+UNIT_ID_FILTER = 513
+
 # --- BLACKLIST ---
 # Datenpunkte, deren Name eines dieser Wörter enthält, werden IGNORIERT.
-# Hier "VOC" eintragen, da nicht verbaut.
+# Hier "VOC" eintragen, wenn nicht verbaut.
 IGNORE_KEYWORDS = ["VOC", "voc", "Luftqualität"]
 
 # Logging
 DEBUG_CONSOLE = True      # Zeigt Werte im Terminal
-DEBUG_RAW = False         # Zeigt Hex-Code (nur für Profis)
+DEBUG_RAW = False         # Zeigt Hex-Code (für Debugging)
 
 # MQTT
 MQTT_ENABLED = True       
@@ -39,7 +48,7 @@ def load_csv():
     print("Lade CSV...")
     count = 0
     try:
-        with open(CSV_FILE, 'r', encoding='latin-1', errors='replace') as f:
+        with open(CSV_FILE, 'r', encoding='utf-8', errors='replace') as f:
             line = f.readline()
             delimiter = ';' if ';' in line else ','
             f.seek(0)
@@ -47,7 +56,16 @@ def load_csv():
             reader = csv.DictReader(f, delimiter=delimiter)
             for row in reader:
                 if row.get('UnitName') != 'HV': continue
-                
+
+                # UNIT ID FILTER
+                # Nur die konfigurierte Unit-ID laden (verhindert Duplikate!)
+                try:
+                    unit_id = int(row.get('UnitId', 0))
+                    if UNIT_ID_FILTER and unit_id != UNIT_ID_FILTER:
+                        continue
+                except:
+                    pass
+
                 # BLACKLIST CHECK BEIM LADEN
                 # Wenn der Name auf der Blacklist steht, gar nicht erst laden!
                 name = row['DatapointName']
@@ -68,7 +86,7 @@ def load_csv():
                     }
                     count += 1
                 except: continue
-        print(f"{count} Datenpunkte geladen (VOC ignoriert).")
+        print(f"{count} Datenpunkte geladen (Unit {UNIT_ID_FILTER}, VOC ignoriert).")
         return True
     except Exception as e:
         print(f"CSV Fehler: {e}")
@@ -93,10 +111,16 @@ def decode_smart(raw_bytes, dp_info):
                 return None
 
         elif type_name == 'S16':
-            val = struct.unpack('>h', raw_bytes[0:2])[0]
-            if val in [-32768, 32767, 255]:
+            # Prüfe ZUERST ob einzelne Bytes 0xFF sind (Fehlercode)
+            if raw_bytes[0] == 0xFF or raw_bytes[1] == 0xFF:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: S16={val} (Fehlercode)")
+                    print(f" [NULL] {dp_info['name']}: S16={raw_bytes.hex()} enthält 0xFF (Fehlercode)")
+                return None
+
+            val = struct.unpack('>h', raw_bytes[0:2])[0]
+            if val in [-32768, 32767]:
+                if DEBUG_RAW:
+                    print(f" [NULL] {dp_info['name']}: S16={val} (Extremwert/Fehlercode)")
                 return None
 
         elif type_name == 'U16':
@@ -144,71 +168,95 @@ def decode_smart(raw_bytes, dp_info):
         return None
 
 def process_stream(client, data):
-    # HYBRID-MODUS: CSV + Extra-Temperatur-Logik
+    # Scan durch Frame (bereits durch 0xFF 0x01 getrennt in main())
+    # Jetzt flexibel: Akzeptiere IDs mit ODER ohne 0x00 Prefix
 
-    # 1. Normal-Scan: Suche nach 2-Byte IDs (ohne 0x00 Zwang!)
-    for i in range(len(data) - 2):
-        candidate_key = data[i:i+2]
+    i = 0
+    while i < len(data) - 2:
+        # Variante 1: 3-Byte ID mit 0x00 Prefix (klassisch)
+        if i < len(data) - 3:
+            key_3byte = data[i:i+3]
+            if key_3byte[0] == 0x00:  # Hat 0x00 Prefix?
+                key_2byte = key_3byte[1:3]  # Extrahiere die echte 2-Byte ID
 
-        if candidate_key in datapoint_map:
-            dp = datapoint_map[candidate_key]
+                if key_2byte in datapoint_map:
+                    dp = datapoint_map[key_2byte]
+                    byte_len = 1 if '8' in dp['type'] else 2
+                    if '32' in dp['type']: byte_len = 4
 
-            byte_len = 1 if '8' in dp['type'] else 2
-            if '32' in dp['type']: byte_len = 4
+                    if i + 3 + byte_len <= len(data):
+                        raw_bytes = data[i+3 : i+3+byte_len]
 
-            if len(data) > i + 2 + byte_len:
-                raw_bytes = data[i+2 : i+2+byte_len]
-                value = decode_smart(raw_bytes, dp)
+                        if DEBUG_RAW and "Aussen" in dp['name']:
+                            hex_str = raw_bytes.hex()
+                            print(f" [RAW] {dp['name']} @ pos {i}: 0x{hex_str}")
 
-                if value is not None:
-                    # Plausibilitätscheck nur für extreme Werte
-                    if "Temp" in dp['name'] or "Aussen" in dp['name']:
-                        if not (-40 <= value <= 70):
-                            if DEBUG_CONSOLE:
-                                print(f" [RANGE] {dp['name']}: {value}°C außerhalb -40..70")
+                        value = decode_smart(raw_bytes, dp)
+
+                        if value is not None:
+                            if "Temp" in dp['name'] or "Aussen" in dp['name']:
+                                if not (-40 <= value <= 70):
+                                    if DEBUG_RAW:
+                                        print(f" [RANGE] {dp['name']}: {value}°C @ pos {i}")
+                                    i += 1
+                                    continue
+
+                            handle_output(client, dp['name'], value, dp['unit'])
+                            i += 3 + byte_len  # Überspringe verarbeitete Bytes
                             continue
 
-                    handle_output(client, dp['name'], value, dp['unit'])
+        # Variante 2: Direkte 2-Byte ID (neu, für Temperaturen ohne Prefix)
+        # NUR für sehr niedrige IDs (0-5) und NUR wenn Position > 0
+        key_2byte = data[i:i+2]
+        if key_2byte in datapoint_map:
+            dp = datapoint_map[key_2byte]
 
-    # 2. EXTRA-TEMPERATUR-LOGIK: Direktsuche nach bekannten Temp-IDs
-    # ID 0 = Außenluft-Temperatur (kritisch!)
-    temp_ids = [0, 1, 2, 3, 4, 5]  # Häufige Temperatur-IDs
+            # WICHTIG: Nur für IDs 0-5 und NICHT am Frame-Anfang (pos 0)
+            if dp['id'] <= 5 and i > 0:
+                byte_len = 1 if '8' in dp['type'] else 2
+                if '32' in dp['type']: byte_len = 4
 
-    for temp_id in temp_ids:
-        id_pattern = struct.pack('>H', temp_id)
-        pos = 0
-        while pos < len(data):
-            found = data.find(id_pattern, pos)
-            if found == -1:
-                break
+                if i + 2 + byte_len <= len(data):
+                    raw_bytes = data[i+2 : i+2+byte_len]
+                    value = decode_smart(raw_bytes, dp)
 
-            # Versuche S16-Temperatur zu lesen (2 Bytes nach ID)
-            if found + 4 <= len(data):
-                raw_bytes = data[found+2:found+4]
+                    if value is not None:
+                        # Strengere Prüfung für niedrige IDs ohne Prefix
+                        if "Temp" in dp['name'] or "Aussen" in dp['name']:
+                            if not (-40 <= value <= 70):
+                                i += 1
+                                continue
 
-                # Nicht 0xFF-Check
-                if raw_bytes != b'\xff\xff':
-                    try:
-                        raw_val = struct.unpack('>h', raw_bytes)[0]
-                        if raw_val != -32768 and raw_val != 32767:
-                            temp_c = raw_val / 10.0
+                        # Extra-Validierung: Wert sollte stabil sein
+                        # (verhindert wilde Sprünge durch False Positives)
+                        prev_val = last_sent.get(dp['name'].replace(" ", "_").lower())
+                        if prev_val is not None:
+                            # Wenn Änderung > 20 Grad, wahrscheinlich False Positive
+                            if abs(value - prev_val) > 20:
+                                i += 1
+                                continue
 
-                            if -40 <= temp_c <= 70:
-                                name = f"Temp_ID_{temp_id}"
-                                handle_output(client, name, round(temp_c, 1), "°C")
-                    except:
-                        pass
+                        handle_output(client, dp['name'], value, dp['unit'])
+                        i += 2 + byte_len
+                        continue
 
-            pos = found + 1
+        i += 1
 
 def handle_output(client, name, value, unit):
     clean_name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss").replace(".", "").replace("/", "_").lower()
-    
+
+    # Duplikatserkennung: Nur bei Änderung publizieren
     if last_sent.get(clean_name) != value:
         last_sent[clean_name] = value
-        
+
         if DEBUG_CONSOLE:
-            print(f" [LOG] {name[:30]:30}: {value} {unit}")
+            # Terminal-Ausgabe mit UTF-8
+            try:
+                print(f" [LOG] {name[:30]:30}: {value} {unit}")
+            except UnicodeEncodeError:
+                # Fallback falls Terminal kein UTF-8 unterstützt
+                unit_ascii = unit.encode('ascii', errors='replace').decode('ascii')
+                print(f" [LOG] {name[:30]:30}: {value} {unit_ascii}")
 
         if MQTT_ENABLED and client:
             try:
