@@ -200,9 +200,17 @@ def process_stream(client, data):
 
                         if value is not None:
                             if "Temp" in dp['name'] or "Aussen" in dp['name']:
+                                # Range Check
                                 if not (-40 <= value <= 70):
                                     if DEBUG_RAW:
                                         print(f" [RANGE] {dp['name']}: {value}°C @ pos {i}")
+                                    i += 1
+                                    continue
+
+                                # Filter 0.0°C für Außentemperatur (häufiger Fehlercode)
+                                if value == 0.0 and "Aussen" in dp['name']:
+                                    if DEBUG_CONSOLE:
+                                        print(f" [FILTER] 0.0°C bei {dp['name']} gefiltert (Fehlercode)")
                                     i += 1
                                     continue
 

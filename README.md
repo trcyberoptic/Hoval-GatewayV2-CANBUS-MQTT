@@ -237,6 +237,7 @@ Datenpunkte mit Keywords in `IGNORE_KEYWORDS` werden nicht geladen.
 ### 3. Anomalie-Filter
 - `25.5°C` (bekannter Fehlercode bei Temperaturen)
 - `112.0` (fehlerhafte VOC-Messung)
+- `0.0°C` bei Außentemperatur (häufiger Fehlercode, echte 0°C sind selten genug zum Filtern)
 
 ### 4. Plausibilitätsprüfung
 Temperaturen müssen im Bereich `-40°C` bis `70°C` liegen.
