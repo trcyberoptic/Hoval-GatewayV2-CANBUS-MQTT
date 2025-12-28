@@ -1,3 +1,11 @@
+hoval-gateway (2.3.1) stable; urgency=medium
+
+  * Fix unbuffered output for systemd logging
+  * Add PYTHONUNBUFFERED=1 environment variable
+  * Add ruff linting and Dependabot
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Sat, 28 Dec 2024 22:30:00 +0000
+
 hoval-gateway (2.3.0) stable; urgency=medium
 
   * Add Debian packaging with GitHub Actions CI/CD
