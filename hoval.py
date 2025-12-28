@@ -388,6 +388,28 @@ def main():
         try:
             client = mqtt.Client()
 
+            # MQTT Callbacks für Fehler-Logging
+            def on_connect(client, userdata, flags, rc):
+                if rc == 0:
+                    print(f'MQTT verbunden ({MQTT_IP}).')
+                else:
+                    error_messages = {
+                        1: 'Falsche Protokollversion',
+                        2: 'Ungültige Client-ID',
+                        3: 'Server nicht erreichbar',
+                        4: 'Authentifizierung fehlgeschlagen (falscher Benutzername/Passwort)',
+                        5: 'Nicht autorisiert',
+                    }
+                    error_msg = error_messages.get(rc, f'Unbekannter Fehler (Code: {rc})')
+                    print(f'MQTT FEHLER: {error_msg}')
+
+            def on_disconnect(client, userdata, rc):
+                if rc != 0:
+                    print(f'MQTT Verbindung verloren (Code: {rc}). Versuche Reconnect...')
+
+            client.on_connect = on_connect
+            client.on_disconnect = on_disconnect
+
             # Authentifizierung setzen, falls konfiguriert
             if MQTT_USERNAME and MQTT_PASSWORD:
                 client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
@@ -395,7 +417,6 @@ def main():
 
             client.connect(MQTT_IP, MQTT_PORT, 60)
             client.loop_start()
-            print(f'MQTT verbunden ({MQTT_IP}).')
         except Exception as e:
             print(f'MQTT nicht erreichbar -> Nur Konsolen-Ausgabe. ({e})')
 

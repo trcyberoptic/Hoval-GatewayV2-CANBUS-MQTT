@@ -266,8 +266,21 @@ German datapoint names are normalized for MQTT topics:
 - **Reconnection delay**: 10 seconds after any exception
 - **MQTT fallback**: If broker unreachable, continues in console-only mode
 - **MQTT authentication**: Supports both anonymous and authenticated connections via `username_pw_set()`
+- **MQTT error logging**: Detailed error messages via `on_connect` and `on_disconnect` callbacks
 - **CSV validation**: Checks file existence before loading
 - **Silent parsing errors**: Invalid datapoints are skipped, not fatal
+
+### MQTT Error Messages
+The application logs detailed MQTT connection errors:
+| Code | Message |
+|------|---------|
+| 1 | Falsche Protokollversion |
+| 2 | Ungültige Client-ID |
+| 3 | Server nicht erreichbar |
+| 4 | Authentifizierung fehlgeschlagen (falscher Benutzername/Passwort) |
+| 5 | Nicht autorisiert |
+
+Unexpected disconnections are also logged with their return code.
 
 ## Development Notes
 
