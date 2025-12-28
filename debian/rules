@@ -5,6 +5,7 @@
 
 override_dh_auto_install:
 	install -D -m 644 hoval.py debian/hoval-gateway/opt/hoval-gateway/hoval.py
+	install -D -m 644 config.ini debian/hoval-gateway/opt/hoval-gateway/config.ini
 	install -D -m 644 hoval_datapoints.csv debian/hoval-gateway/opt/hoval-gateway/hoval_datapoints.csv
 	install -D -m 644 hoval-gateway.service debian/hoval-gateway/lib/systemd/system/hoval-gateway.service
 	install -D -m 644 debian/hoval-gateway.logrotate debian/hoval-gateway/etc/logrotate.d/hoval-gateway
