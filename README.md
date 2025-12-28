@@ -32,10 +32,10 @@ Das einfachste ist die Installation über das fertige `.deb`-Paket:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.3.1_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.3.2_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.3.1_all.deb
+sudo apt install ./hoval-gateway_2.3.2_all.deb
 
 # Konfiguration anpassen
 sudo nano /opt/hoval-gateway/hoval.py
@@ -421,7 +421,11 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.3.1 (Aktuell)
+### Version 2.3.2 (Aktuell)
+- ✅ **MQTT Error Logging**: Detaillierte Fehlermeldungen bei Auth-Fehlern und Verbindungsabbrüchen
+- ✅ **on_connect/on_disconnect Callbacks**: Klare Diagnose bei MQTT-Problemen
+
+### Version 2.3.1
 - ✅ **Fix: Unbuffered Output** für korrektes systemd Logging
 - ✅ **PYTHONUNBUFFERED=1** Environment-Variable im Service
 - ✅ **Ruff Linting** mit GitHub Actions CI
