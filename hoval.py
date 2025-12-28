@@ -1,10 +1,11 @@
-import socket
-import struct
 import csv
 import json
 import os
-import time
+import socket
+import struct
 import sys
+import time
+
 import paho.mqtt.client as mqtt
 
 # UTF-8 Encoding für Terminal sicherstellen
@@ -53,14 +54,15 @@ def load_csv():
     print("Lade CSV...")
     count = 0
     try:
-        with open(CSV_FILE, 'r', encoding='utf-8', errors='replace') as f:
+        with open(CSV_FILE, encoding='utf-8', errors='replace') as f:
             line = f.readline()
             delimiter = ';' if ';' in line else ','
             f.seek(0)
-            
+
             reader = csv.DictReader(f, delimiter=delimiter)
             for row in reader:
-                if row.get('UnitName') != 'HV': continue
+                if row.get('UnitName') != 'HV':
+                    continue
 
                 # UNIT ID FILTER
                 # Nur die konfigurierte Unit-ID laden (verhindert Duplikate!)
@@ -90,7 +92,8 @@ def load_csv():
                         'id': dp_id  # Speichere auch die numerische ID
                     }
                     count += 1
-                except: continue
+                except:
+                    continue
         print(f"{count} Datenpunkte geladen (Unit {UNIT_ID_FILTER}, VOC ignoriert).")
         return True
     except Exception as e:
@@ -149,7 +152,7 @@ def decode_smart(raw_bytes, dp_info):
                     print(f" [NULL] {dp_info['name']}: U32={val} (Fehlercode)")
                 return None
         else:
-            return None 
+            return None
 
         # Dezimal anwenden
         if dp_info['decimal'] > 0:
@@ -187,7 +190,8 @@ def process_stream(client, data):
                 if key_2byte in datapoint_map:
                     dp = datapoint_map[key_2byte]
                     byte_len = 1 if '8' in dp['type'] else 2
-                    if '32' in dp['type']: byte_len = 4
+                    if '32' in dp['type']:
+                        byte_len = 4
 
                     if i + 3 + byte_len <= len(data):
                         raw_bytes = data[i+3 : i+3+byte_len]
@@ -227,7 +231,8 @@ def process_stream(client, data):
             # WICHTIG: Nur für IDs 0-5 und NICHT am Frame-Anfang (pos 0)
             if dp['id'] <= 5 and i > 0:
                 byte_len = 1 if '8' in dp['type'] else 2
-                if '32' in dp['type']: byte_len = 4
+                if '32' in dp['type']:
+                    byte_len = 4
 
                 if i + 2 + byte_len <= len(data):
                     raw_bytes = data[i+2 : i+2+byte_len]
@@ -356,11 +361,14 @@ def handle_output(client, name, value, unit):
                 topic = f"{TOPIC_BASE}/{clean_name}"
                 payload = json.dumps({"value": value, "unit": unit})
                 client.publish(topic, payload, retain=True)
-            except: pass
+            except:
+                pass
+
 
 def main():
-    if not load_csv(): return
-    
+    if not load_csv():
+        return
+
     client = None
     if MQTT_ENABLED:
         try:
@@ -378,7 +386,7 @@ def main():
             print(f"MQTT nicht erreichbar -> Nur Konsolen-Ausgabe. ({e})")
 
     print("Starte Hoval Universal Listener...")
-    
+
     while True:
         s = None
         try:
@@ -386,11 +394,12 @@ def main():
             s.settimeout(15)
             s.connect((HOVAL_IP, HOVAL_PORT))
             print(f"Verbunden mit {HOVAL_IP}")
-            
+
             while True:
                 data = s.recv(4096)
-                if not data: break
-                
+                if not data:
+                    break
+
                 parts = data.split(b'\xff\x01')
                 for part in parts:
                     if len(part) > 4:
@@ -402,7 +411,9 @@ def main():
             print(f"Reconnect... ({e})")
             time.sleep(10)
         finally:
-            if s: s.close()
+            if s:
+                s.close()
+
 
 if __name__ == "__main__":
     main()
