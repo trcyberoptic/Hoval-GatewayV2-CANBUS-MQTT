@@ -1,3 +1,4 @@
+import configparser
 import csv
 import json
 import os
@@ -12,33 +13,52 @@ import paho.mqtt.client as mqtt
 sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
-# --- KONFIGURATION ---
-HOVAL_IP = '10.0.0.95'
-HOVAL_PORT = 3113
-CSV_FILE = 'hoval_datapoints.csv'
+# --- KONFIGURATION LADEN ---
+def load_config():
+    """Lädt Konfiguration aus config.ini"""
+    config = configparser.ConfigParser()
 
-# --- FILTER ---
-# Nur diese UnitId laden (z.B. 513)
-UNIT_ID_FILTER = 513
+    # Suche config.ini im gleichen Verzeichnis wie das Skript
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'config.ini')
 
-# --- BLACKLIST ---
-# Datenpunkte, deren Name eines dieser Wörter enthält, werden IGNORIERT.
-# Hier "VOC" eintragen, wenn nicht verbaut.
-IGNORE_KEYWORDS = ['CO2', 'VOC', 'voc', 'Luftqualität']
+    if not os.path.exists(config_path):
+        print(f'FEHLER: {config_path} nicht gefunden!')
+        print('Bitte config.ini erstellen (siehe config.ini.example)')
+        sys.exit(1)
+
+    config.read(config_path, encoding='utf-8')
+    return config
+
+
+# Konfiguration laden
+_config = load_config()
+
+# Hoval-Gerät
+HOVAL_IP = _config.get('hoval', 'ip', fallback='10.0.0.95')
+HOVAL_PORT = _config.getint('hoval', 'port', fallback=3113)
+CSV_FILE = _config.get('hoval', 'csv_file', fallback='hoval_datapoints.csv')
+
+# Filter
+UNIT_ID_FILTER = _config.getint('filter', 'unit_id', fallback=513)
+_ignore_str = _config.get('filter', 'ignore_keywords', fallback='VOC, voc, Luftqualität')
+IGNORE_KEYWORDS = [kw.strip() for kw in _ignore_str.split(',') if kw.strip()]
 
 # Logging
-DEBUG_CONSOLE = True  # Zeigt Werte im Terminal
-DEBUG_RAW = False  # Zeigt Hex-Code (für Debugging)
+DEBUG_CONSOLE = _config.getboolean('logging', 'debug_console', fallback=True)
+DEBUG_RAW = _config.getboolean('logging', 'debug_raw', fallback=False)
 
 # MQTT
-MQTT_ENABLED = True
-MQTT_IP = 'homeassistant'
-MQTT_PORT = 1883
-MQTT_USERNAME = ''  # MQTT Benutzername (leer lassen für anonymous)
-MQTT_PASSWORD = ''  # MQTT Passwort (leer lassen für anonymous)
-TOPIC_BASE = 'hoval/homevent'
-MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery aktivieren
-HOMEASSISTANT_PREFIX = 'homeassistant'  # Home Assistant Discovery Prefix
+MQTT_ENABLED = _config.getboolean('mqtt', 'enabled', fallback=True)
+MQTT_IP = _config.get('mqtt', 'ip', fallback='127.0.0.1')
+MQTT_PORT = _config.getint('mqtt', 'port', fallback=1883)
+MQTT_USERNAME = _config.get('mqtt', 'username', fallback='')
+MQTT_PASSWORD = _config.get('mqtt', 'password', fallback='')
+TOPIC_BASE = _config.get('mqtt', 'topic_base', fallback='hoval/homevent')
+
+# Home Assistant
+MQTT_HOMEASSISTANT_DISCOVERY = _config.getboolean('homeassistant', 'discovery', fallback=True)
+HOMEASSISTANT_PREFIX = _config.get('homeassistant', 'prefix', fallback='homeassistant')
 
 # Speicher
 datapoint_map = {}

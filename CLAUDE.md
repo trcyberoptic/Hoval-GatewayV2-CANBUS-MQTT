@@ -104,31 +104,33 @@ The application implements multiple filtering layers to prevent invalid data (9 
 
 ## Configuration
 
-All configuration is at the top of [hoval.py](hoval.py) (lines 9-40):
+All configuration is stored in [config.ini](config.ini):
 
-```python
-# Device connection
-HOVAL_IP = '10.0.0.95'            # Hoval device IP
-HOVAL_PORT = 3113                  # CAN-BUS TCP port
-CSV_FILE = 'hoval_datapoints.csv'  # Device mapping file
+```ini
+[hoval]
+ip = 10.0.0.95                    # Hoval device IP
+port = 3113                        # CAN-BUS TCP port
+csv_file = hoval_datapoints.csv   # Device mapping file
 
-# Filtering
-UNIT_ID_FILTER = 513               # Only load this Unit ID (prevents duplicates)
-IGNORE_KEYWORDS = ["VOC", "voc", "Luftqualität"]
+[filter]
+unit_id = 513                      # Only load this Unit ID (prevents duplicates)
+ignore_keywords = CO2, VOC, voc, Luftqualität  # Comma-separated blacklist
 
-# Debugging
-DEBUG_CONSOLE = True               # Print values to terminal
-DEBUG_RAW = False                  # Print hex data (for protocol analysis)
+[logging]
+debug_console = true               # Print values to terminal
+debug_raw = false                  # Print hex data (for protocol analysis)
 
-# MQTT
-MQTT_ENABLED = True                # Enable MQTT publishing
-MQTT_IP = '127.0.0.1'             # MQTT broker address
-MQTT_PORT = 1883                   # MQTT broker port
-MQTT_USERNAME = ''                 # MQTT username (empty for anonymous)
-MQTT_PASSWORD = ''                 # MQTT password (empty for anonymous)
-TOPIC_BASE = "hoval/homevent"      # MQTT topic prefix
-MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery
-HOMEASSISTANT_PREFIX = "homeassistant"  # Discovery prefix
+[mqtt]
+enabled = true                     # Enable MQTT publishing
+ip = 127.0.0.1                    # MQTT broker address
+port = 1883                        # MQTT broker port
+username =                         # MQTT username (empty for anonymous)
+password =                         # MQTT password (empty for anonymous)
+topic_base = hoval/homevent       # MQTT topic prefix
+
+[homeassistant]
+discovery = true                   # Home Assistant Auto-Discovery
+prefix = homeassistant            # Discovery prefix
 ```
 
 ## Installation
@@ -139,10 +141,10 @@ Download the `.deb` package from [GitHub Releases](https://github.com/trcyberopt
 
 ```bash
 # Install package
-sudo apt install ./hoval-gateway_2.3.2_all.deb
+sudo apt install ./hoval-gateway_2.4.0_all.deb
 
 # Edit configuration
-sudo nano /opt/hoval-gateway/hoval.py
+sudo nano /opt/hoval-gateway/config.ini
 
 # Enable and start service
 sudo systemctl enable --now hoval-gateway

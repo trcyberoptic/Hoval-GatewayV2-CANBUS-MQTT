@@ -32,13 +32,13 @@ Das einfachste ist die Installation über das fertige `.deb`-Paket:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.3.2_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.4.0_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.3.2_all.deb
+sudo apt install ./hoval-gateway_2.4.0_all.deb
 
 # Konfiguration anpassen
-sudo nano /opt/hoval-gateway/hoval.py
+sudo nano /opt/hoval-gateway/config.ini
 
 # Service starten
 sudo systemctl enable --now hoval-gateway
@@ -70,31 +70,43 @@ Das Paket installiert:
 
 ## Konfiguration
 
-Öffnen Sie [hoval.py](hoval.py) und passen Sie die Parameter an (Zeilen 9-27):
+Alle Einstellungen werden in der Datei `config.ini` vorgenommen:
 
-```python
-# --- KONFIGURATION ---
-HOVAL_IP = '10.0.0.95'           # IP-Adresse des Hoval-Geräts
-HOVAL_PORT = 3113                 # CAN-BUS TCP-Port (Standard: 3113)
-CSV_FILE = 'hoval_datapoints.csv' # Datenpunkt-Konfiguration
+```ini
+[hoval]
+# IP-Adresse des Hoval-Geräts
+ip = 10.0.0.95
+# CAN-BUS TCP-Port (Standard: 3113)
+port = 3113
 
-# --- BLACKLIST ---
-# Datenpunkte ignorieren (z.B. nicht verbaute Sensoren)
-IGNORE_KEYWORDS = ["VOC", "voc", "Luftqualität"]
+[filter]
+# Nur diese UnitId laden (verhindert Duplikate)
+unit_id = 513
+# Datenpunkte ignorieren (kommasepariert)
+ignore_keywords = CO2, VOC, voc, Luftqualität
 
-# Logging
-DEBUG_CONSOLE = True              # Werte im Terminal anzeigen
-DEBUG_RAW = False                 # Hex-Dumps für Protokoll-Analyse
+[logging]
+# Werte im Terminal anzeigen
+debug_console = true
+# Hex-Dumps für Protokoll-Analyse
+debug_raw = false
 
-# MQTT
-MQTT_ENABLED = True               # MQTT-Publishing aktivieren
-MQTT_IP = '127.0.0.1'            # MQTT-Broker IP-Adresse
-MQTT_PORT = 1883                  # MQTT-Broker Port
-MQTT_USERNAME = ''                # MQTT-Benutzername (leer für anonymous)
-MQTT_PASSWORD = ''                # MQTT-Passwort (leer für anonymous)
-TOPIC_BASE = "hoval/homevent"     # MQTT-Topic-Präfix
-MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery
-HOMEASSISTANT_PREFIX = "homeassistant"  # Discovery Prefix
+[mqtt]
+# MQTT-Publishing aktivieren
+enabled = true
+# MQTT-Broker IP-Adresse oder Hostname
+ip = 127.0.0.1
+port = 1883
+# Authentifizierung (leer lassen für anonymous)
+username =
+password =
+# Topic-Präfix
+topic_base = hoval/homevent
+
+[homeassistant]
+# Auto-Discovery aktivieren
+discovery = true
+prefix = homeassistant
 ```
 
 ## Verwendung
@@ -144,15 +156,17 @@ Drücken Sie `Ctrl+C` für einen sauberen Shutdown.
 Das Gateway unterstützt sowohl anonyme als auch authentifizierte MQTT-Verbindungen:
 
 **Ohne Authentifizierung (Standard)**:
-```python
-MQTT_USERNAME = ''  # Leer lassen
-MQTT_PASSWORD = ''  # Leer lassen
+```ini
+[mqtt]
+username =
+password =
 ```
 
 **Mit Authentifizierung** (z.B. für Mosquitto mit Passwortdatei):
-```python
-MQTT_USERNAME = 'mein_benutzer'
-MQTT_PASSWORD = 'mein_passwort'
+```ini
+[mqtt]
+username = mein_benutzer
+password = mein_passwort
 ```
 
 ### Topic-Struktur
@@ -210,7 +224,7 @@ Das Gateway unterstützt **Home Assistant MQTT Discovery**. Alle Sensoren werden
 
 #### Manuelle Konfiguration (Optional)
 
-Falls Sie Auto-Discovery deaktivieren (`MQTT_HOMEASSISTANT_DISCOVERY = False`), können Sie die Sensoren manuell in `configuration.yaml` definieren:
+Falls Sie Auto-Discovery deaktivieren (`discovery = false` in `[homeassistant]`), können Sie die Sensoren manuell in `configuration.yaml` definieren:
 
 ```yaml
 mqtt:
@@ -345,10 +359,11 @@ Häufig verwendete Sensoren (alle Namen in Deutsch):
 
 ### Debug-Modus aktivieren
 
-Für detaillierte Protokoll-Analyse:
+Für detaillierte Protokoll-Analyse in `config.ini`:
 
-```python
-DEBUG_RAW = True  # Zeigt alle gefilterten Werte und Hex-Dumps
+```ini
+[logging]
+debug_raw = true
 ```
 
 Ausgabe:
@@ -364,6 +379,7 @@ Ausgabe:
 Hoval-GatewayV2-CANBUS-MQTT/
 │
 ├── hoval.py                 # Haupt-Gateway-Skript
+├── config.ini               # Konfigurationsdatei
 ├── hoval_datapoints.csv     # Datenpunkt-Definitionen (1137 Zeilen)
 ├── hoval-gateway.service    # Systemd Service-Datei
 ├── requirements.txt         # Python-Abhängigkeiten
@@ -421,7 +437,12 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.3.2 (Aktuell)
+### Version 2.4.0 (Aktuell)
+- ✅ **Externe Konfigurationsdatei**: Alle Einstellungen in `config.ini`
+- ✅ **Keine Code-Änderungen nötig**: Benutzer müssen `hoval.py` nicht mehr editieren
+- ✅ **INI-Format**: Einfach lesbare und editierbare Konfiguration
+
+### Version 2.3.2
 - ✅ **MQTT Error Logging**: Detaillierte Fehlermeldungen bei Auth-Fehlern und Verbindungsabbrüchen
 - ✅ **on_connect/on_disconnect Callbacks**: Klare Diagnose bei MQTT-Problemen
 
