@@ -22,8 +22,9 @@ PrivateTmp=true
 ReadOnlyPaths=/
 ReadWritePaths=/var/log/hoval-gateway
 
-# Ensure UTF-8 encoding
+# Ensure UTF-8 encoding and unbuffered output
 Environment="PYTHONIOENCODING=utf-8"
+Environment="PYTHONUNBUFFERED=1"
 Environment="LANG=C.UTF-8"
 
 [Install]

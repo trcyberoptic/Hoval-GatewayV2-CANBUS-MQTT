@@ -8,9 +8,9 @@ import time
 
 import paho.mqtt.client as mqtt
 
-# UTF-8 Encoding für Terminal sicherstellen
-if sys.stdout.encoding != 'utf-8':
-    sys.stdout.reconfigure(encoding='utf-8')
+# Unbuffered output für systemd logging
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 
 # --- KONFIGURATION ---
 HOVAL_IP = '10.0.0.95'
