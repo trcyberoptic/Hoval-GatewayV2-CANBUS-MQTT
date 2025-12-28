@@ -37,7 +37,7 @@ jobs:
           mv ../hoval-gateway_*.changes dist/ || true
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hoval-gateway-deb
           path: dist/*.deb
