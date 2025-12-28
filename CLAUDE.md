@@ -139,7 +139,7 @@ Download the `.deb` package from [GitHub Releases](https://github.com/trcyberopt
 
 ```bash
 # Install package
-sudo apt install ./hoval-gateway_2.3.0_all.deb
+sudo apt install ./hoval-gateway_2.3.2_all.deb
 
 # Edit configuration
 sudo nano /opt/hoval-gateway/hoval.py
