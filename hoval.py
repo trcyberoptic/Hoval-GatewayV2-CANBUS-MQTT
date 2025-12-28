@@ -24,34 +24,35 @@ UNIT_ID_FILTER = 513
 # --- BLACKLIST ---
 # Datenpunkte, deren Name eines dieser Wörter enthält, werden IGNORIERT.
 # Hier "VOC" eintragen, wenn nicht verbaut.
-IGNORE_KEYWORDS = ["CO2", "VOC", "voc", "Luftqualität"]
+IGNORE_KEYWORDS = ['CO2', 'VOC', 'voc', 'Luftqualität']
 
 # Logging
-DEBUG_CONSOLE = True      # Zeigt Werte im Terminal
-DEBUG_RAW = False         # Zeigt Hex-Code (für Debugging)
+DEBUG_CONSOLE = True  # Zeigt Werte im Terminal
+DEBUG_RAW = False  # Zeigt Hex-Code (für Debugging)
 
 # MQTT
 MQTT_ENABLED = True
 MQTT_IP = 'homeassistant'
 MQTT_PORT = 1883
-MQTT_USERNAME = ''         # MQTT Benutzername (leer lassen für anonymous)
-MQTT_PASSWORD = ''         # MQTT Passwort (leer lassen für anonymous)
-TOPIC_BASE = "hoval/homevent"
+MQTT_USERNAME = ''  # MQTT Benutzername (leer lassen für anonymous)
+MQTT_PASSWORD = ''  # MQTT Passwort (leer lassen für anonymous)
+TOPIC_BASE = 'hoval/homevent'
 MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery aktivieren
-HOMEASSISTANT_PREFIX = "homeassistant"  # Home Assistant Discovery Prefix
+HOMEASSISTANT_PREFIX = 'homeassistant'  # Home Assistant Discovery Prefix
 
 # Speicher
 datapoint_map = {}
 last_sent = {}
 discovered_topics = set()  # Bereits registrierte Topics für Home Assistant
 
+
 # --- CSV LADEN ---
 def load_csv():
     if not os.path.exists(CSV_FILE):
-        print(f"FEHLER: {CSV_FILE} fehlt!")
+        print(f'FEHLER: {CSV_FILE} fehlt!')
         return False
 
-    print("Lade CSV...")
+    print('Lade CSV...')
     count = 0
     try:
         with open(CSV_FILE, encoding='utf-8', errors='replace') as f:
@@ -89,22 +90,23 @@ def load_csv():
                         'type': row['TypeName'],
                         'decimal': int(row['Decimal']),
                         'unit': row['unit'],
-                        'id': dp_id  # Speichere auch die numerische ID
+                        'id': dp_id,  # Speichere auch die numerische ID
                     }
                     count += 1
                 except:
                     continue
-        print(f"{count} Datenpunkte geladen (Unit {UNIT_ID_FILTER}, VOC ignoriert).")
+        print(f'{count} Datenpunkte geladen (Unit {UNIT_ID_FILTER}, VOC ignoriert).')
         return True
     except Exception as e:
-        print(f"CSV Fehler: {e}")
+        print(f'CSV Fehler: {e}')
         return False
+
 
 # --- DECODER ---
 def decode_smart(raw_bytes, dp_info):
     if raw_bytes == b'\xff' * len(raw_bytes):
         if DEBUG_RAW:
-            print(f" [NULL] {dp_info['name']}: Alle Bytes 0xFF (Fehlercode)")
+            print(f' [NULL] {dp_info["name"]}: Alle Bytes 0xFF (Fehlercode)')
         return None
 
     val = 0
@@ -115,41 +117,41 @@ def decode_smart(raw_bytes, dp_info):
             val = raw_bytes[0]
             if val == 255:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: U8=255 (Fehlercode)")
+                    print(f' [NULL] {dp_info["name"]}: U8=255 (Fehlercode)')
                 return None
 
         elif type_name == 'S16':
             # Prüfe ZUERST ob einzelne Bytes 0xFF sind (Fehlercode)
             if raw_bytes[0] == 0xFF or raw_bytes[1] == 0xFF:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: S16={raw_bytes.hex()} enthält 0xFF (Fehlercode)")
+                    print(f' [NULL] {dp_info["name"]}: S16={raw_bytes.hex()} enthält 0xFF (Fehlercode)')
                 return None
 
             val = struct.unpack('>h', raw_bytes[0:2])[0]
             if val in [-32768, 32767]:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: S16={val} (Extremwert/Fehlercode)")
+                    print(f' [NULL] {dp_info["name"]}: S16={val} (Extremwert/Fehlercode)')
                 return None
 
         elif type_name == 'U16':
             val = struct.unpack('>H', raw_bytes[0:2])[0]
             if val == 65535:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: U16=65535 (Fehlercode)")
+                    print(f' [NULL] {dp_info["name"]}: U16=65535 (Fehlercode)')
                 return None
 
         elif type_name == 'S32':
             val = struct.unpack('>i', raw_bytes[0:4])[0]
             if val == -2147483648:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: S32={val} (Fehlercode)")
+                    print(f' [NULL] {dp_info["name"]}: S32={val} (Fehlercode)')
                 return None
 
         elif type_name == 'U32':
             val = struct.unpack('>I', raw_bytes[0:4])[0]
             if val == 4294967295:
                 if DEBUG_RAW:
-                    print(f" [NULL] {dp_info['name']}: U32={val} (Fehlercode)")
+                    print(f' [NULL] {dp_info["name"]}: U32={val} (Fehlercode)')
                 return None
         else:
             return None
@@ -161,19 +163,20 @@ def decode_smart(raw_bytes, dp_info):
 
             # --- FILTER (REDUZIERT) ---
             # Nur noch 25.5 und 112.0 filtern - 0.0 ist ein echter Wert!
-            if val == 25.5 and "Temp" in dp_info['name']:
+            if val == 25.5 and 'Temp' in dp_info['name']:
                 if DEBUG_CONSOLE:
-                    print(f" [FILTER] 25.5°C erkannt bei {dp_info['name']} - gefiltert")
+                    print(f' [FILTER] 25.5°C erkannt bei {dp_info["name"]} - gefiltert')
                 return None
 
             if val == 112.0:
                 if DEBUG_CONSOLE:
-                    print(f" [FILTER] 112.0 erkannt bei {dp_info['name']} - gefiltert")
+                    print(f' [FILTER] 112.0 erkannt bei {dp_info["name"]} - gefiltert')
                 return None
 
         return val
     except:
         return None
+
 
 def process_stream(client, data):
     # Scan durch Frame (bereits durch 0xFF 0x01 getrennt in main())
@@ -183,7 +186,7 @@ def process_stream(client, data):
     while i < len(data) - 2:
         # Variante 1: 3-Byte ID mit 0x00 Prefix (klassisch)
         if i < len(data) - 3:
-            key_3byte = data[i:i+3]
+            key_3byte = data[i : i + 3]
             if key_3byte[0] == 0x00:  # Hat 0x00 Prefix?
                 key_2byte = key_3byte[1:3]  # Extrahiere die echte 2-Byte ID
 
@@ -194,27 +197,27 @@ def process_stream(client, data):
                         byte_len = 4
 
                     if i + 3 + byte_len <= len(data):
-                        raw_bytes = data[i+3 : i+3+byte_len]
+                        raw_bytes = data[i + 3 : i + 3 + byte_len]
 
-                        if DEBUG_RAW and "Aussen" in dp['name']:
+                        if DEBUG_RAW and 'Aussen' in dp['name']:
                             hex_str = raw_bytes.hex()
-                            print(f" [RAW] {dp['name']} @ pos {i}: 0x{hex_str}")
+                            print(f' [RAW] {dp["name"]} @ pos {i}: 0x{hex_str}')
 
                         value = decode_smart(raw_bytes, dp)
 
                         if value is not None:
-                            if "Temp" in dp['name'] or "Aussen" in dp['name']:
+                            if 'Temp' in dp['name'] or 'Aussen' in dp['name']:
                                 # Range Check
                                 if not (-40 <= value <= 70):
                                     if DEBUG_RAW:
-                                        print(f" [RANGE] {dp['name']}: {value}°C @ pos {i}")
+                                        print(f' [RANGE] {dp["name"]}: {value}°C @ pos {i}')
                                     i += 1
                                     continue
 
                                 # Filter 0.0°C für Außentemperatur (häufiger Fehlercode)
-                                if value == 0.0 and "Aussen" in dp['name']:
+                                if value == 0.0 and 'Aussen' in dp['name']:
                                     if DEBUG_CONSOLE:
-                                        print(f" [FILTER] 0.0°C bei {dp['name']} gefiltert (Fehlercode)")
+                                        print(f' [FILTER] 0.0°C bei {dp["name"]} gefiltert (Fehlercode)')
                                     i += 1
                                     continue
 
@@ -224,7 +227,7 @@ def process_stream(client, data):
 
         # Variante 2: Direkte 2-Byte ID (neu, für Temperaturen ohne Prefix)
         # NUR für sehr niedrige IDs (0-5) und NUR wenn Position > 0
-        key_2byte = data[i:i+2]
+        key_2byte = data[i : i + 2]
         if key_2byte in datapoint_map:
             dp = datapoint_map[key_2byte]
 
@@ -235,7 +238,7 @@ def process_stream(client, data):
                     byte_len = 4
 
                 if i + 2 + byte_len <= len(data):
-                    raw_bytes = data[i+2 : i+2+byte_len]
+                    raw_bytes = data[i + 2 : i + 2 + byte_len]
 
                     # Extra-Check für NOPREFIX: 0x0000 ist auch ein Fehlercode
                     if raw_bytes == b'\x00\x00':
@@ -246,14 +249,14 @@ def process_stream(client, data):
 
                     if value is not None:
                         # Strengere Prüfung für niedrige IDs ohne Prefix
-                        if "Temp" in dp['name'] or "Aussen" in dp['name']:
+                        if 'Temp' in dp['name'] or 'Aussen' in dp['name']:
                             if not (-40 <= value <= 70):
                                 i += 1
                                 continue
 
                         # Extra-Validierung: Wert sollte stabil sein
                         # (verhindert wilde Sprünge durch False Positives)
-                        prev_val = last_sent.get(dp['name'].replace(" ", "_").lower())
+                        prev_val = last_sent.get(dp['name'].replace(' ', '_').lower())
                         if prev_val is not None:
                             # Wenn Änderung > 20 Grad, wahrscheinlich False Positive
                             if abs(value - prev_val) > 20:
@@ -262,7 +265,7 @@ def process_stream(client, data):
                         else:
                             # Beim ersten Wert: 0.0°C ist sehr verdächtig (oft Fehlercode)
                             # Nur akzeptieren wenn es der einzige Wert in diesem Frame ist
-                            if value == 0.0 and ("Temp" in dp['name'] or "Aussen" in dp['name']):
+                            if value == 0.0 and ('Temp' in dp['name'] or 'Aussen' in dp['name']):
                                 i += 1
                                 continue
 
@@ -271,6 +274,7 @@ def process_stream(client, data):
                         continue
 
         i += 1
+
 
 def publish_homeassistant_discovery(client, clean_name, name, unit):
     """
@@ -284,60 +288,70 @@ def publish_homeassistant_discovery(client, clean_name, name, unit):
     device_class = None
     icon = None
 
-    if unit == "°C" or "temp" in clean_name.lower():
-        device_class = "temperature"
-        icon = "mdi:thermometer"
-    elif unit == "%" and ("feucht" in clean_name.lower() or "humidity" in clean_name.lower()):
-        device_class = "humidity"
-        icon = "mdi:water-percent"
-    elif unit == "%" and "lueft" in clean_name.lower():
-        icon = "mdi:fan"
-    elif "co2" in clean_name.lower():
-        device_class = "carbon_dioxide"
-        icon = "mdi:molecule-co2"
-    elif "voc" in clean_name.lower():
-        device_class = "volatile_organic_compounds"
-        icon = "mdi:air-filter"
+    if unit == '°C' or 'temp' in clean_name.lower():
+        device_class = 'temperature'
+        icon = 'mdi:thermometer'
+    elif unit == '%' and ('feucht' in clean_name.lower() or 'humidity' in clean_name.lower()):
+        device_class = 'humidity'
+        icon = 'mdi:water-percent'
+    elif unit == '%' and 'lueft' in clean_name.lower():
+        icon = 'mdi:fan'
+    elif 'co2' in clean_name.lower():
+        device_class = 'carbon_dioxide'
+        icon = 'mdi:molecule-co2'
+    elif 'voc' in clean_name.lower():
+        device_class = 'volatile_organic_compounds'
+        icon = 'mdi:air-filter'
 
     # Erstelle eindeutige ID für Home Assistant
-    unique_id = f"hoval_{clean_name}"
+    unique_id = f'hoval_{clean_name}'
 
     # Discovery Topic
-    component = "sensor"
-    discovery_topic = f"{HOMEASSISTANT_PREFIX}/{component}/hoval/{clean_name}/config"
+    component = 'sensor'
+    discovery_topic = f'{HOMEASSISTANT_PREFIX}/{component}/hoval/{clean_name}/config'
 
     # Discovery Payload
     config = {
-        "name": f"Hoval {name}",
-        "unique_id": unique_id,
-        "state_topic": f"{TOPIC_BASE}/{clean_name}",
-        "value_template": "{{ value_json.value }}",
-        "unit_of_measurement": unit,
-        "device": {
-            "identifiers": ["hoval_homevent"],
-            "name": "Hoval HomeVent",
-            "manufacturer": "Hoval",
-            "model": "HomeVent"
-        }
+        'name': f'Hoval {name}',
+        'unique_id': unique_id,
+        'state_topic': f'{TOPIC_BASE}/{clean_name}',
+        'value_template': '{{ value_json.value }}',
+        'unit_of_measurement': unit,
+        'device': {
+            'identifiers': ['hoval_homevent'],
+            'name': 'Hoval HomeVent',
+            'manufacturer': 'Hoval',
+            'model': 'HomeVent',
+        },
     }
 
     if device_class:
-        config["device_class"] = device_class
+        config['device_class'] = device_class
     if icon:
-        config["icon"] = icon
+        config['icon'] = icon
 
     # Publiziere Discovery Config als retained message
     try:
         client.publish(discovery_topic, json.dumps(config), retain=True)
         discovered_topics.add(clean_name)
         if DEBUG_CONSOLE:
-            print(f" [DISCOVERY] Home Assistant Entity: {name}")
+            print(f' [DISCOVERY] Home Assistant Entity: {name}')
     except Exception as e:
         if DEBUG_CONSOLE:
-            print(f" [DISCOVERY ERROR] {e}")
+            print(f' [DISCOVERY ERROR] {e}')
+
 
 def handle_output(client, name, value, unit):
-    clean_name = name.replace(" ", "_").replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss").replace(".", "").replace("/", "_").lower()
+    clean_name = (
+        name.replace(' ', '_')
+        .replace('ä', 'ae')
+        .replace('ö', 'oe')
+        .replace('ü', 'ue')
+        .replace('ß', 'ss')
+        .replace('.', '')
+        .replace('/', '_')
+        .lower()
+    )
 
     # Duplikatserkennung: Nur bei Änderung publizieren
     if last_sent.get(clean_name) != value:
@@ -346,11 +360,11 @@ def handle_output(client, name, value, unit):
         if DEBUG_CONSOLE:
             # Terminal-Ausgabe mit UTF-8
             try:
-                print(f" [LOG] {name[:30]:30}: {value} {unit}")
+                print(f' [LOG] {name[:30]:30}: {value} {unit}')
             except UnicodeEncodeError:
                 # Fallback falls Terminal kein UTF-8 unterstützt
                 unit_ascii = unit.encode('ascii', errors='replace').decode('ascii')
-                print(f" [LOG] {name[:30]:30}: {value} {unit_ascii}")
+                print(f' [LOG] {name[:30]:30}: {value} {unit_ascii}')
 
         if MQTT_ENABLED and client:
             try:
@@ -358,8 +372,8 @@ def handle_output(client, name, value, unit):
                 publish_homeassistant_discovery(client, clean_name, name, unit)
 
                 # Publiziere Wert als retained message
-                topic = f"{TOPIC_BASE}/{clean_name}"
-                payload = json.dumps({"value": value, "unit": unit})
+                topic = f'{TOPIC_BASE}/{clean_name}'
+                payload = json.dumps({'value': value, 'unit': unit})
                 client.publish(topic, payload, retain=True)
             except:
                 pass
@@ -377,15 +391,15 @@ def main():
             # Authentifizierung setzen, falls konfiguriert
             if MQTT_USERNAME and MQTT_PASSWORD:
                 client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-                print(f"MQTT: Verwende Authentifizierung (User: {MQTT_USERNAME})")
+                print(f'MQTT: Verwende Authentifizierung (User: {MQTT_USERNAME})')
 
             client.connect(MQTT_IP, MQTT_PORT, 60)
             client.loop_start()
-            print(f"MQTT verbunden ({MQTT_IP}).")
+            print(f'MQTT verbunden ({MQTT_IP}).')
         except Exception as e:
-            print(f"MQTT nicht erreichbar -> Nur Konsolen-Ausgabe. ({e})")
+            print(f'MQTT nicht erreichbar -> Nur Konsolen-Ausgabe. ({e})')
 
-    print("Starte Hoval Universal Listener...")
+    print('Starte Hoval Universal Listener...')
 
     while True:
         s = None
@@ -393,7 +407,7 @@ def main():
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(15)
             s.connect((HOVAL_IP, HOVAL_PORT))
-            print(f"Verbunden mit {HOVAL_IP}")
+            print(f'Verbunden mit {HOVAL_IP}')
 
             while True:
                 data = s.recv(4096)
@@ -408,12 +422,12 @@ def main():
         except KeyboardInterrupt:
             break
         except Exception as e:
-            print(f"Reconnect... ({e})")
+            print(f'Reconnect... ({e})')
             time.sleep(10)
         finally:
             if s:
                 s.close()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
