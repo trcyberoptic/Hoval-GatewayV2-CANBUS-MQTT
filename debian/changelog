@@ -1,0 +1,9 @@
+hoval-gateway (2.3.0) stable; urgency=medium
+
+  * Add Debian packaging with GitHub Actions CI/CD
+  * Add systemd service with logging to /var/log/hoval-gateway
+  * Add log rotation configuration (7 days, compressed)
+  * Security hardening via systemd (NoNewPrivileges, ProtectSystem, etc.)
+  * Automatic .deb builds on GitHub releases
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Sat, 28 Dec 2024 12:00:00 +0000

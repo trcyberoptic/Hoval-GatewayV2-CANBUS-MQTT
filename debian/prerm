@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+# Stop service before removal
+if systemctl is-active --quiet hoval-gateway; then
+    systemctl stop hoval-gateway
+fi
+
+#DEBHELPER#
+
+exit 0

@@ -1,0 +1,30 @@
+[Unit]
+Description=Hoval Gateway CAN-BUS to MQTT Bridge
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hoval
+Group=hoval
+WorkingDirectory=/opt/hoval-gateway
+ExecStart=/usr/bin/python3 /opt/hoval-gateway/hoval.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/hoval-gateway/hoval.log
+StandardError=append:/var/log/hoval-gateway/hoval.log
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/
+ReadWritePaths=/var/log/hoval-gateway
+
+# Ensure UTF-8 encoding
+Environment="PYTHONIOENCODING=utf-8"
+Environment="LANG=C.UTF-8"
+
+[Install]
+WantedBy=multi-user.target

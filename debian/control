@@ -1,0 +1,21 @@
+Source: hoval-gateway
+Section: misc
+Priority: optional
+Maintainer: Hoval Gateway Maintainers <noreply@github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: hoval-gateway
+Architecture: all
+Depends: ${misc:Depends}, python3, python3-paho-mqtt
+Description: Hoval CAN-BUS to MQTT Gateway
+ A Python-based IoT gateway that bridges Hoval ventilation/heating
+ systems to MQTT via CAN-BUS protocol. It continuously reads sensor
+ data from a Hoval device over a TCP socket and publishes it to an
+ MQTT broker for home automation integration.
+ .
+ Features:
+  - Home Assistant MQTT Auto-Discovery
+  - Automatic reconnection
+  - Configurable filtering

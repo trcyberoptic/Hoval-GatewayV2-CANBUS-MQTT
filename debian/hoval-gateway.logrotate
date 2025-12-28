@@ -1,0 +1,12 @@
+/var/log/hoval-gateway/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 hoval hoval
+    postrotate
+        systemctl reload hoval-gateway > /dev/null 2>&1 || true
+    endscript
+}

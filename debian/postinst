@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+SERVICE_USER="hoval"
+
+# Create service user if it doesn't exist
+if ! getent passwd "$SERVICE_USER" > /dev/null; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+fi
+
+# Set ownership
+chown -R "$SERVICE_USER:$SERVICE_USER" /opt/hoval-gateway
+chown -R "$SERVICE_USER:$SERVICE_USER" /var/log/hoval-gateway
+
+# Reload systemd
+systemctl daemon-reload
+
+#DEBHELPER#
+
+exit 0
