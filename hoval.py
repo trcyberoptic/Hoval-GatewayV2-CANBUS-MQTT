@@ -13,6 +13,7 @@ import paho.mqtt.client as mqtt
 sys.stdout.reconfigure(line_buffering=True)
 sys.stderr.reconfigure(line_buffering=True)
 
+
 # --- KONFIGURATION LADEN ---
 def load_config():
     """Lädt Konfiguration aus config.ini"""
