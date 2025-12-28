@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    purge)
+        # Remove log directory on purge
+        rm -rf /var/log/hoval-gateway
+
+        # Remove user on purge
+        if getent passwd hoval > /dev/null; then
+            userdel hoval || true
+        fi
+        ;;
+esac
+
+# Reload systemd
+systemctl daemon-reload || true
+
+#DEBHELPER#
+
+exit 0

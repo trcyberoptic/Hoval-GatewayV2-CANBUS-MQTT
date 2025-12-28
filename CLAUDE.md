@@ -131,14 +131,50 @@ MQTT_HOMEASSISTANT_DISCOVERY = True  # Home Assistant Auto-Discovery
 HOMEASSISTANT_PREFIX = "homeassistant"  # Discovery prefix
 ```
 
-## Running the Application
+## Installation
 
-### Prerequisites
+### Debian/Ubuntu Package (Recommended)
+
+Download the `.deb` package from [GitHub Releases](https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases):
+
 ```bash
-pip install paho-mqtt
+# Install package
+sudo apt install ./hoval-gateway_2.3.0_all.deb
+
+# Edit configuration
+sudo nano /opt/hoval-gateway/hoval.py
+
+# Enable and start service
+sudo systemctl enable --now hoval-gateway
+
+# View logs
+tail -f /var/log/hoval-gateway/hoval.log
 ```
 
-### Execution
+The package installs:
+- Application to `/opt/hoval-gateway/`
+- Systemd service `hoval-gateway.service`
+- Log rotation to `/var/log/hoval-gateway/`
+- Dedicated `hoval` system user
+
+### Manual Installation
+
+```bash
+pip install paho-mqtt
+python hoval.py
+```
+
+## Running the Application
+
+### As a Systemd Service (Debian Package)
+```bash
+sudo systemctl start hoval-gateway    # Start
+sudo systemctl stop hoval-gateway     # Stop
+sudo systemctl status hoval-gateway   # Status
+journalctl -u hoval-gateway -f        # Follow logs
+```
+
+### Manual Execution
 ```bash
 python hoval.py
 ```
@@ -241,8 +277,10 @@ This codebase has no automated tests. When modifying code:
 - Monitor console output and MQTT messages
 - Verify filtering logic with edge cases
 
-### No Build System
-Direct Python execution - no Makefile, setup.py, or requirements.txt
+### Build System
+- **Debian packaging**: `debian/` directory with full debhelper support
+- **GitHub Actions**: Automatic `.deb` builds on tagged releases (`.github/workflows/build-deb.yml`)
+- **Manual build**: Run `./build-deb.sh` on a Debian system
 
 ### German Language Context
 All device datapoint names and comments are in German. Key terms:
