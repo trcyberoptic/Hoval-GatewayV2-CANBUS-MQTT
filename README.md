@@ -26,9 +26,38 @@ Ein Python-basiertes Gateway, das Hoval Lüftungs-/Heizungssysteme (HV-Geräte) 
 
 ## Installation
 
+### Debian/Ubuntu (Empfohlen)
+
+Das einfachste ist die Installation über das fertige `.deb`-Paket:
+
+```bash
+# Paket von GitHub Releases herunterladen
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.3.1_all.deb
+
+# Installieren
+sudo apt install ./hoval-gateway_2.3.1_all.deb
+
+# Konfiguration anpassen
+sudo nano /opt/hoval-gateway/hoval.py
+
+# Service starten
+sudo systemctl enable --now hoval-gateway
+
+# Logs anzeigen
+tail -f /var/log/hoval-gateway/hoval.log
+```
+
+Das Paket installiert:
+- Anwendung nach `/opt/hoval-gateway/`
+- Systemd-Service `hoval-gateway.service`
+- Log-Rotation nach `/var/log/hoval-gateway/`
+- Dedizierter `hoval` System-Benutzer
+
+### Manuelle Installation
+
 1. **Repository klonen oder Dateien herunterladen**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT.git
    cd Hoval-GatewayV2-CANBUS-MQTT
    ```
 
@@ -70,7 +99,17 @@ HOMEASSISTANT_PREFIX = "homeassistant"  # Discovery Prefix
 
 ## Verwendung
 
-### Starten des Gateways
+### Als Systemd-Service (Debian-Paket)
+
+```bash
+sudo systemctl start hoval-gateway    # Starten
+sudo systemctl stop hoval-gateway     # Stoppen
+sudo systemctl status hoval-gateway   # Status
+sudo systemctl restart hoval-gateway  # Neustarten
+journalctl -u hoval-gateway -f        # Logs folgen
+```
+
+### Manueller Start
 
 ```bash
 python hoval.py
@@ -324,10 +363,21 @@ Ausgabe:
 ```
 Hoval-GatewayV2-CANBUS-MQTT/
 │
-├── hoval.py                 # Haupt-Gateway-Skript (202 Zeilen)
+├── hoval.py                 # Haupt-Gateway-Skript
 ├── hoval_datapoints.csv     # Datenpunkt-Definitionen (1137 Zeilen)
+├── hoval-gateway.service    # Systemd Service-Datei
+├── requirements.txt         # Python-Abhängigkeiten
 ├── README.md                # Diese Datei
-└── CLAUDE.md                # Entwickler-Dokumentation
+├── CLAUDE.md                # Entwickler-Dokumentation
+├── debian/                  # Debian-Paketierung
+│   ├── control              # Paket-Metadaten
+│   ├── changelog            # Versionshistorie
+│   ├── rules                # Build-Regeln
+│   └── ...
+└── .github/
+    └── workflows/
+        ├── build-deb.yml    # Automatische .deb-Builds
+        └── lint.yml         # Ruff Linting
 ```
 
 ## Protokoll-Details
@@ -371,7 +421,20 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.2 (Aktuell)
+### Version 2.3.1 (Aktuell)
+- ✅ **Fix: Unbuffered Output** für korrektes systemd Logging
+- ✅ **PYTHONUNBUFFERED=1** Environment-Variable im Service
+- ✅ **Ruff Linting** mit GitHub Actions CI
+- ✅ **Dependabot** für automatische Dependency-Updates
+
+### Version 2.3.0
+- ✅ **Debian-Paketierung**: Fertiges `.deb`-Paket für einfache Installation
+- ✅ **Systemd-Service**: `hoval-gateway.service` mit Security-Hardening
+- ✅ **Log-Rotation**: Automatische Rotation nach `/var/log/hoval-gateway/`
+- ✅ **GitHub Actions CI/CD**: Automatische Builds bei neuen Tags
+- ✅ Dedizierter `hoval` System-Benutzer
+
+### Version 2.2
 - ✅ **Home Assistant MQTT Auto-Discovery**: Automatische Sensor-Registrierung ohne manuelle Konfiguration
 - ✅ **Retained Messages**: Alle MQTT-Nachrichten werden persistent gespeichert
 - ✅ **Smart Device Grouping**: Alle Sensoren erscheinen unter einem gemeinsamen Device
