@@ -72,17 +72,18 @@ The application implements multiple filtering layers to prevent invalid data (9 
 - Keywords in `IGNORE_KEYWORDS` (default: `["VOC", "voc", "Luftqualität"]`)
 - Datapoints with blacklisted names are never loaded into memory
 
-### 3. S16 Null Detection ([hoval.py:144-151](hoval.py#L144-L151))
-- S16 values are checked for `0xFFFF` (raw bytes) as error code
-- Does NOT filter individual `0xFF` bytes - negative temperatures use these! (e.g., -1.0°C = `0xFFF6`)
+### 3. S16 Null Detection ([hoval.py:144-159](hoval.py#L144-L159))
+- `0xFFFF` (raw bytes) as classic null value
+- `0xFF00` to `0xFF05` (= -25.6°C to -25.1°C) - error code range
+- Does NOT filter other `0xFF` high-bytes - negative temperatures use these! (e.g., -1.0°C = `0xFFF6`)
 - Also filters `0x0000` in NOPREFIX path
 
 ### 4. Type-Specific Null Values
 - All `0xFF` byte patterns are rejected
 - Type-specific null values (see table above) are filtered
 
-### 5. Anomaly Detection ([hoval.py:147-165](hoval.py#L147-L165))
-- `25.5°C` temperature readings (common error value)
+### 5. Anomaly Detection ([hoval.py:195-205](hoval.py#L195-L205))
+- `25.5°C` and `-25.5°C` temperature readings (common error values from `0x00FF` and `0xFF01`)
 - `112.0` values (erroneous VOC readings)
 - `0.0°C` for outdoor temperature ("Aussen") - common error code, real outdoor 0°C is rare enough to filter
 

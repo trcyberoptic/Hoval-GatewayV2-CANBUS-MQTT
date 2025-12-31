@@ -1,3 +1,11 @@
+hoval-gateway (2.4.2) stable; urgency=medium
+
+  * Filter -25.4°C to -25.6°C error codes (0xFF00-0xFF05)
+  * Add -25.5°C to anomaly filter alongside 25.5°C
+  * Fixes false readings from error bytes in negative range
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Tue, 31 Dec 2024 13:00:00 +0000
+
 hoval-gateway (2.4.1) stable; urgency=medium
 
   * Fix negative temperature filtering bug
