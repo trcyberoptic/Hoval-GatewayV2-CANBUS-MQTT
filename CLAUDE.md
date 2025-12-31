@@ -72,9 +72,9 @@ The application implements multiple filtering layers to prevent invalid data (9 
 - Keywords in `IGNORE_KEYWORDS` (default: `["VOC", "voc", "Luftqualität"]`)
 - Datapoints with blacklisted names are never loaded into memory
 
-### 3. Byte-Level Null Detection ([hoval.py:106-109](hoval.py#L106-L109))
-- **NEW**: S16 values are checked for individual `0xFF` bytes BEFORE unpacking
-- Prevents `-25.4°C` (from `0xFF02`) being misinterpreted as valid
+### 3. S16 Null Detection ([hoval.py:144-151](hoval.py#L144-L151))
+- S16 values are checked for `0xFFFF` (raw bytes) as error code
+- Does NOT filter individual `0xFF` bytes - negative temperatures use these! (e.g., -1.0°C = `0xFFF6`)
 - Also filters `0x0000` in NOPREFIX path
 
 ### 4. Type-Specific Null Values

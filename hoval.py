@@ -142,10 +142,12 @@ def decode_smart(raw_bytes, dp_info):
                 return None
 
         elif type_name == 'S16':
-            # Prüfe ZUERST ob einzelne Bytes 0xFF sind (Fehlercode)
-            if raw_bytes[0] == 0xFF or raw_bytes[1] == 0xFF:
+            # S16 Fehlercode: nur 0xFFFF (=-1 nach unpack, aber wir prüfen raw)
+            # NICHT einzelne 0xFF Bytes prüfen - negative Zahlen haben oft 0xFF!
+            # z.B. -1.0°C = 0xFFF6, -5.0°C = 0xFFCE
+            if raw_bytes == b'\xff\xff':
                 if DEBUG_RAW:
-                    print(f' [NULL] {dp_info["name"]}: S16={raw_bytes.hex()} enthält 0xFF (Fehlercode)')
+                    print(f' [NULL] {dp_info["name"]}: S16=0xFFFF (Fehlercode)')
                 return None
 
             val = struct.unpack('>h', raw_bytes[0:2])[0]
