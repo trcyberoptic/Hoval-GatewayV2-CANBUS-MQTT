@@ -32,10 +32,10 @@ Das einfachste ist die Installation über das fertige `.deb`-Paket:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.4.3_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.5.0_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.4.3_all.deb
+sudo apt install ./hoval-gateway_2.5.0_all.deb
 
 # Konfiguration anpassen
 sudo nano /opt/hoval-gateway/config.ini
@@ -437,7 +437,12 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.4.3 (Aktuell)
+### Version 2.5.0 (Aktuell)
+- ✅ **Bugfix: Negative Außentemperaturen**: DatapointId=0 verwendet spezielles Protokoll-Format
+- ✅ **Korrekte Erkennung**: Außentemperaturen wie -4.3°C werden jetzt korrekt gelesen
+- ✅ Protokoll-Format für ID=0: `00 00 00 FF [Wert]` statt `00 00 00 [Wert]`
+
+### Version 2.4.3
 - ✅ **Config-Schutz bei Updates**: `config.ini` wird bei Updates nicht mehr überschrieben
 - ✅ dpkg fragt nun nach, wenn sich die Konfigurationsdatei geändert hat
 

@@ -1,3 +1,11 @@
+hoval-gateway (2.5.0) stable; urgency=medium
+
+  * Fix DatapointId=0 (Außentemperatur) parsing
+  * Handle special protocol format: 00 00 00 FF [value] for ID=0
+  * Negative outdoor temperatures now correctly read (e.g., -4.3°C)
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Tue, 31 Dec 2024 15:00:00 +0000
+
 hoval-gateway (2.4.3) stable; urgency=medium
 
   * Mark config.ini as conffile to preserve user changes during upgrades
