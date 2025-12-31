@@ -1,3 +1,10 @@
+hoval-gateway (2.4.3) stable; urgency=medium
+
+  * Mark config.ini as conffile to preserve user changes during upgrades
+  * dpkg will now prompt instead of overwriting config.ini
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Tue, 31 Dec 2024 14:00:00 +0000
+
 hoval-gateway (2.4.2) stable; urgency=medium
 
   * Filter -25.4°C to -25.6°C error codes (0xFF00-0xFF05)
