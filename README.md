@@ -32,10 +32,10 @@ Das einfachste ist die Installation über das fertige `.deb`-Paket:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.4.2_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.4.3_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.4.2_all.deb
+sudo apt install ./hoval-gateway_2.4.3_all.deb
 
 # Konfiguration anpassen
 sudo nano /opt/hoval-gateway/config.ini
@@ -437,7 +437,11 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.4.2 (Aktuell)
+### Version 2.4.3 (Aktuell)
+- ✅ **Config-Schutz bei Updates**: `config.ini` wird bei Updates nicht mehr überschrieben
+- ✅ dpkg fragt nun nach, wenn sich die Konfigurationsdatei geändert hat
+
+### Version 2.4.2
 - ✅ **Bugfix: -25.4°C Fehlercode**: Werte von -25.1°C bis -25.6°C (`0xFF00`-`0xFF05`) werden jetzt als Fehlercodes gefiltert
 - ✅ **Erweiterter Anomalie-Filter**: Sowohl `25.5°C` als auch `-25.5°C` werden als Fehlercodes erkannt
 
