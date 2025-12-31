@@ -32,10 +32,10 @@ Das einfachste ist die Installation über das fertige `.deb`-Paket:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.4.1_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.4.2_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.4.1_all.deb
+sudo apt install ./hoval-gateway_2.4.2_all.deb
 
 # Konfiguration anpassen
 sudo nano /opt/hoval-gateway/config.ini
@@ -437,7 +437,11 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.4.1 (Aktuell)
+### Version 2.4.2 (Aktuell)
+- ✅ **Bugfix: -25.4°C Fehlercode**: Werte von -25.1°C bis -25.6°C (`0xFF00`-`0xFF05`) werden jetzt als Fehlercodes gefiltert
+- ✅ **Erweiterter Anomalie-Filter**: Sowohl `25.5°C` als auch `-25.5°C` werden als Fehlercodes erkannt
+
+### Version 2.4.1
 - ✅ **Bugfix: Negative Temperaturen**: S16-Decoder filterte fälschlicherweise Temperaturen von -0.1°C bis -12.8°C
 - ✅ **Ursache**: Einzelne `0xFF`-Bytes wurden als Fehlercode interpretiert, obwohl sie bei negativen Zahlen normal sind
 - ✅ **Jetzt korrekt**: Nur noch `0xFFFF` (komplett) wird als Fehlercode behandelt

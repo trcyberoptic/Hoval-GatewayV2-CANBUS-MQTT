@@ -142,12 +142,20 @@ def decode_smart(raw_bytes, dp_info):
                 return None
 
         elif type_name == 'S16':
-            # S16 Fehlercode: nur 0xFFFF (=-1 nach unpack, aber wir prüfen raw)
-            # NICHT einzelne 0xFF Bytes prüfen - negative Zahlen haben oft 0xFF!
-            # z.B. -1.0°C = 0xFFF6, -5.0°C = 0xFFCE
+            # S16 Fehlercodes:
+            # - 0xFFFF = -1 (raw) - klassischer Null-Wert
+            # - 0xFF00 bis 0xFF05 = -256 bis -251 → -25.6 bis -25.1°C (Fehlercodes)
+            # - 0x00FF = 255 → 25.5°C (bereits im Anomalie-Filter)
+            # Aber NICHT alle 0xFF-High-Bytes filtern, da echte negative Temps
+            # z.B. -1.0°C = 0xFFF6, -5.0°C = 0xFFCE, -12.8°C = 0xFF80
             if raw_bytes == b'\xff\xff':
                 if DEBUG_RAW:
                     print(f' [NULL] {dp_info["name"]}: S16=0xFFFF (Fehlercode)')
+                return None
+            # Fehlercodes 0xFF00-0xFF05 filtern (resultiert in -25.6 bis -25.1°C)
+            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+                if DEBUG_RAW:
+                    print(f' [NULL] {dp_info["name"]}: S16={raw_bytes.hex()} (Fehlercode-Bereich)')
                 return None
 
             val = struct.unpack('>h', raw_bytes[0:2])[0]
@@ -185,10 +193,10 @@ def decode_smart(raw_bytes, dp_info):
             val = round(val, 2)
 
             # --- FILTER (REDUZIERT) ---
-            # Nur noch 25.5 und 112.0 filtern - 0.0 ist ein echter Wert!
-            if val == 25.5 and 'Temp' in dp_info['name']:
+            # 25.5°C und -25.5°C sind bekannte Fehlercodes (0x00FF und 0xFF01)
+            if val in [25.5, -25.5] and 'Temp' in dp_info['name']:
                 if DEBUG_CONSOLE:
-                    print(f' [FILTER] 25.5°C erkannt bei {dp_info["name"]} - gefiltert')
+                    print(f' [FILTER] {val}°C erkannt bei {dp_info["name"]} - gefiltert')
                 return None
 
             if val == 112.0:
