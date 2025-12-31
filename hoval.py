@@ -227,12 +227,39 @@ def process_stream(client, data):
                     if '32' in dp['type']:
                         byte_len = 4
 
-                    if i + 3 + byte_len <= len(data):
-                        raw_bytes = data[i + 3 : i + 3 + byte_len]
+                    # Spezialfall: DatapointId=0 (Außentemperatur) hat ein spezielles Format
+                    # Das echte Format scheint zu sein: 00 00 00 FF [S16-Wert] FF 02
+                    # Wir lesen NUR mit offset=4 und validieren streng
+                    if dp['id'] == 0:
+                        # Für ID=0: Nur offset=4 verwenden (nach dem 0xFF Marker)
+                        if i + 6 <= len(data) and data[i + 3] == 0xFF:
+                            raw_bytes = data[i + 4 : i + 6]
+                            # Überspringe wenn es ein bekannter Fehlercode ist
+                            if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
+                                i += 1
+                                continue
+                            # Überspringe Fehlercodes 0xFF00-0xFF05
+                            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+                                i += 1
+                                continue
+                            value = decode_smart(raw_bytes, dp)
+                            if value is not None and -40 <= value <= 50:
+                                if DEBUG_RAW:
+                                    print(f' [RAW] {dp["name"]} @ pos {i}: 0x{raw_bytes.hex()} = {value}°C')
+                                handle_output(client, dp['name'], value, dp['unit'])
+                                i += 6
+                                continue
+                        i += 1
+                        continue
+
+                    # Normaler Fall für alle anderen IDs
+                    offset = 3
+                    if i + offset + byte_len <= len(data):
+                        raw_bytes = data[i + offset : i + offset + byte_len]
 
                         if DEBUG_RAW and 'Aussen' in dp['name']:
                             hex_str = raw_bytes.hex()
-                            print(f' [RAW] {dp["name"]} @ pos {i}: 0x{hex_str}')
+                            print(f' [RAW] {dp["name"]} @ pos {i} (offset {offset}): 0x{hex_str}')
 
                         value = decode_smart(raw_bytes, dp)
 
@@ -253,7 +280,7 @@ def process_stream(client, data):
                                     continue
 
                             handle_output(client, dp['name'], value, dp['unit'])
-                            i += 3 + byte_len  # Überspringe verarbeitete Bytes
+                            i += offset + byte_len  # Überspringe verarbeitete Bytes
                             continue
 
         # Variante 2: Direkte 2-Byte ID (neu, für Temperaturen ohne Prefix)
