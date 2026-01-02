@@ -25,14 +25,15 @@ Home Automation Systems
 
 ### Core Components
 
-**[hoval.py](hoval.py)** - Single monolithic application (~380 lines) with 6 key functions:
+**[hoval.py](hoval.py)** - Single monolithic application (~560 lines) with 7 key functions:
 
 1. **`load_csv()`** - Loads [hoval_datapoints.csv](hoval_datapoints.csv) into `datapoint_map` dictionary, filtering blacklisted keywords and Unit ID
 2. **`decode_smart(raw_bytes, dp_info)`** - Decodes binary data based on type (U8, S16, U16, S32, U32, LIST) with decimal scaling and byte-level 0xFF checks
-3. **`process_stream(client, data)`** - **Hybrid scanner** that accepts IDs with OR without 0x00 prefix (fallback for IDs 0-5)
-4. **`publish_homeassistant_discovery(client, clean_name, name, unit)`** - **NEW**: Publishes Home Assistant MQTT Discovery config (once per sensor)
-5. **`handle_output(client, name, value, unit)`** - Normalizes names (German umlauts → ASCII), deduplicates, publishes to MQTT with retained flag
-6. **`main()`** - Orchestrates socket connection, streaming loop, and automatic reconnection
+3. **`scan_for_outdoor_temp(client, data, dp)`** - Pattern-based scanner for DatapointId=0 (outdoor temperature). Searches backwards from `FF 02` terminators for `[xx 00 00 00] [S16-value] [FF 02]` pattern
+4. **`process_stream(client, data)`** - **Hybrid scanner** that accepts IDs with OR without 0x00 prefix (fallback for IDs 0-5)
+5. **`publish_homeassistant_discovery(client, clean_name, name, unit)`** - Publishes Home Assistant MQTT Discovery config (once per sensor)
+6. **`handle_output(client, name, value, unit)`** - Normalizes names (German umlauts → ASCII), deduplicates, publishes to MQTT with retained flag
+7. **`main()`** - Orchestrates socket connection, streaming loop, and automatic reconnection
 
 **[hoval_datapoints.csv](hoval_datapoints.csv)** - Device configuration file (1,137 rows):
 - Semicolon-delimited, **UTF-8 encoded**
@@ -48,6 +49,13 @@ Home Automation Systems
 - **Fallback format** (IDs 0-5 only): Direct 2-byte big-endian ID without prefix
 - Value bytes follow immediately after the ID
 - Byte lengths: 1 byte (U8), 2 bytes (S16/U16), 4 bytes (S32/U32)
+
+### Special Case: DatapointId=0 (Outdoor Temperature)
+DatapointId=0 ("Temperatur Aussenluft") uses a different protocol format that cannot be parsed with the standard ID-based approach:
+- **Pattern**: `[00 00] [S16-value] [FF 02]`
+- Example frame: `00 00 04 10 01 42 32 00 00 00 00 1b ff 02` = 2.7°C
+- The scanner searches for `00 00 XX XX FF 02` patterns where XX XX is the temperature value
+- This simplified approach only requires 2 null bytes before the value, making detection more reliable
 
 ### Type System
 | Type | Bytes | Format | Null Value |
