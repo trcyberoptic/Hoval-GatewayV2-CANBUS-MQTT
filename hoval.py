@@ -228,27 +228,30 @@ def process_stream(client, data):
                         byte_len = 4
 
                     # Spezialfall: DatapointId=0 (Außentemperatur) hat ein spezielles Format
-                    # Das echte Format scheint zu sein: 00 00 00 FF [S16-Wert] FF 02
-                    # Wir lesen NUR mit offset=4 und validieren streng
+                    # Format: 00 00 00 [marker] [S16-Wert] FF 02
+                    # - Negative Temps: marker = 0xFF (z.B. 00 00 00 FF FFD5 = -4.3°C)
+                    # - Positive Temps: marker = 0x00 (z.B. 00 00 00 00 001B = +2.7°C)
                     if dp['id'] == 0:
-                        # Für ID=0: Nur offset=4 verwenden (nach dem 0xFF Marker)
-                        if i + 6 <= len(data) and data[i + 3] == 0xFF:
-                            raw_bytes = data[i + 4 : i + 6]
-                            # Überspringe wenn es ein bekannter Fehlercode ist
-                            if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
-                                i += 1
-                                continue
-                            # Überspringe Fehlercodes 0xFF00-0xFF05
-                            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
-                                i += 1
-                                continue
-                            value = decode_smart(raw_bytes, dp)
-                            if value is not None and -40 <= value <= 50:
-                                if DEBUG_RAW:
-                                    print(f' [RAW] {dp["name"]} @ pos {i}: 0x{raw_bytes.hex()} = {value}°C')
-                                handle_output(client, dp['name'], value, dp['unit'])
-                                i += 6
-                                continue
+                        if i + 6 <= len(data):
+                            marker = data[i + 3]
+                            # Akzeptiere 0xFF (negativ) oder 0x00 (positiv) als Marker
+                            if marker in [0xFF, 0x00]:
+                                raw_bytes = data[i + 4 : i + 6]
+                                # Überspringe bekannte Fehlercodes
+                                if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
+                                    i += 1
+                                    continue
+                                # Überspringe Fehlercodes 0xFF00-0xFF05
+                                if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+                                    i += 1
+                                    continue
+                                value = decode_smart(raw_bytes, dp)
+                                if value is not None and -40 <= value <= 50:
+                                    if DEBUG_RAW:
+                                        print(f' [RAW] {dp["name"]} @ pos {i}: 0x{raw_bytes.hex()} = {value}°C')
+                                    handle_output(client, dp['name'], value, dp['unit'])
+                                    i += 6
+                                    continue
                         i += 1
                         continue
 
