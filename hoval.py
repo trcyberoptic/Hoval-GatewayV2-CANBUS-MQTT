@@ -226,14 +226,14 @@ def scan_for_outdoor_temp(client, data, dp):
 
     # Finde alle FF 02 Terminatoren und prüfe rückwärts
     for i in range(len(data) - 1):
-        if data[i:i+2] == b'\xff\x02':
+        if data[i : i + 2] == b'\xff\x02':
             # FF 02 gefunden an Position i
             # Prüfe ob 6 Bytes davor verfügbar: [4-byte prefix] [2-byte value] [FF 02]
             if i < 6:
                 continue
 
-            raw_bytes = data[i-2:i]      # 2 Bytes direkt vor FF 02 = Value
-            prefix = data[i-6:i-2]        # 4 Bytes davor = Prefix
+            raw_bytes = data[i - 2 : i]  # 2 Bytes direkt vor FF 02 = Value
+            prefix = data[i - 6 : i - 2]  # 4 Bytes davor = Prefix
 
             if DEBUG_RAW:
                 print(f' [FF02] @ {i}: prefix={prefix.hex()} value={raw_bytes.hex()}')
@@ -264,7 +264,7 @@ def scan_for_outdoor_temp(client, data, dp):
 
             value = decode_smart(raw_bytes, dp)
             if value is not None and -40 <= value <= 50:
-                print(f' [SCAN] Außentemp: 0x{raw_bytes.hex()} = {value}°C @ pos {i-2}')
+                print(f' [SCAN] Außentemp: 0x{raw_bytes.hex()} = {value}°C @ pos {i - 2}')
                 handle_output(client, dp['name'], value, dp['unit'])
                 return True
 
@@ -557,4 +557,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
