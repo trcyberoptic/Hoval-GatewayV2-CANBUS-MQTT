@@ -1,3 +1,12 @@
+hoval-gateway (2.5.2) stable; urgency=medium
+
+  * Complete rewrite of outdoor temperature detection
+  * New pattern-based scanner: searches for [00 00 00 00] [value] [FF 02]
+  * Supports both positive temps (00 00 00 00 prefix) and negative temps (00 00 00 FF prefix)
+  * Eliminates false NULL readings from misaligned frame parsing
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Thu, 02 Jan 2025 14:00:00 +0000
+
 hoval-gateway (2.5.1) stable; urgency=medium
 
   * Fix positive outdoor temperature parsing

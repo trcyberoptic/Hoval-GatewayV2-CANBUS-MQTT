@@ -209,9 +209,53 @@ def decode_smart(raw_bytes, dp_info):
         return None
 
 
+def scan_for_outdoor_temp(client, data, dp):
+    """
+    Scannt den gesamten Frame nach dem Außentemperatur-Pattern.
+    Erkanntes Format: ... 00 00 00 00 [S16-value] FF 02
+    Beispiel: 00 00 04 10 01 42 32 00 00 00 00 1b ff 02 = 2.7°C
+    """
+    for i in range(len(data) - 7):
+        # Suche nach Pattern: [value] FF 02 am Ende
+        # Prüfe ob wir 2 Bytes vor FF 02 sind
+        if data[i+2:i+4] == b'\xff\x02':
+            raw_bytes = data[i:i+2]
+
+            # Überspringe offensichtliche Fehlercodes
+            if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
+                continue
+            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+                continue
+
+            # Prüfe ob es 4x 0x00 davor gibt (charakteristisch für Außentemp)
+            if i >= 4 and data[i-4:i] == b'\x00\x00\x00\x00':
+                value = decode_smart(raw_bytes, dp)
+                if value is not None and -40 <= value <= 50:
+                    if DEBUG_RAW:
+                        print(f' [SCAN] Außentemp @ {i}: value=0x{raw_bytes.hex()} = {value}°C')
+                    handle_output(client, dp['name'], value, dp['unit'])
+                    return True
+
+            # Alternativ: Prüfe ob es 00 00 00 FF davor gibt (für negative Temps)
+            if i >= 4 and data[i-4:i] == b'\x00\x00\x00\xff':
+                value = decode_smart(raw_bytes, dp)
+                if value is not None and -40 <= value <= 50:
+                    if DEBUG_RAW:
+                        print(f' [SCAN] Außentemp @ {i}: value=0x{raw_bytes.hex()} = {value}°C (neg marker)')
+                    handle_output(client, dp['name'], value, dp['unit'])
+                    return True
+
+    return False
+
+
 def process_stream(client, data):
     # Scan durch Frame (bereits durch 0xFF 0x01 getrennt in main())
     # Jetzt flexibel: Akzeptiere IDs mit ODER ohne 0x00 Prefix
+
+    # Spezialfall: DatapointId=0 (Außentemperatur) - scanne gesamten Frame
+    dp_outdoor = datapoint_map.get(b'\x00\x00')  # ID=0
+    if dp_outdoor:
+        scan_for_outdoor_temp(client, data, dp_outdoor)
 
     i = 0
     while i < len(data) - 2:
@@ -227,31 +271,8 @@ def process_stream(client, data):
                     if '32' in dp['type']:
                         byte_len = 4
 
-                    # Spezialfall: DatapointId=0 (Außentemperatur) hat ein spezielles Format
-                    # Format: 00 00 00 [marker] [S16-Wert] FF 02
-                    # - Negative Temps: marker = 0xFF (z.B. 00 00 00 FF FFD5 = -4.3°C)
-                    # - Positive Temps: marker = 0x00 (z.B. 00 00 00 00 001B = +2.7°C)
+                    # ID=0 wird bereits oben per scan_for_outdoor_temp behandelt
                     if dp['id'] == 0:
-                        if i + 6 <= len(data):
-                            marker = data[i + 3]
-                            # Akzeptiere 0xFF (negativ) oder 0x00 (positiv) als Marker
-                            if marker in [0xFF, 0x00]:
-                                raw_bytes = data[i + 4 : i + 6]
-                                # Überspringe bekannte Fehlercodes
-                                if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
-                                    i += 1
-                                    continue
-                                # Überspringe Fehlercodes 0xFF00-0xFF05
-                                if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
-                                    i += 1
-                                    continue
-                                value = decode_smart(raw_bytes, dp)
-                                if value is not None and -40 <= value <= 50:
-                                    if DEBUG_RAW:
-                                        print(f' [RAW] {dp["name"]} @ pos {i}: 0x{raw_bytes.hex()} = {value}°C')
-                                    handle_output(client, dp['name'], value, dp['unit'])
-                                    i += 6
-                                    continue
                         i += 1
                         continue
 
