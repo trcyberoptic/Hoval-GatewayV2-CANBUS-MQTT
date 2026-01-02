@@ -52,10 +52,10 @@ Home Automation Systems
 
 ### Special Case: DatapointId=0 (Outdoor Temperature)
 DatapointId=0 ("Temperatur Aussenluft") uses a different protocol format that cannot be parsed with the standard ID-based approach:
-- **Pattern**: `[00 00] [S16-value] [FF 02]`
+- **Pattern**: `[xx 00 00 00] [S16-value] [FF 02]`
 - Example frame: `00 00 04 10 01 42 32 00 00 00 00 1b ff 02` = 2.7°C
-- The scanner searches for `00 00 XX XX FF 02` patterns where XX XX is the temperature value
-- This simplified approach only requires 2 null bytes before the value, making detection more reliable
+- The scanner searches backwards from `FF 02` terminators, checking if the 4 bytes before the value have at least the last 3 bytes as `00 00 00`
+- This handles cases where a previous data byte (e.g., `32`) precedes the pattern
 
 ### Type System
 | Type | Bytes | Format | Null Value |
