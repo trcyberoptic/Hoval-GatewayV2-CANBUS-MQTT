@@ -213,33 +213,44 @@ def scan_for_outdoor_temp(client, data, dp):
     """
     Scannt den gesamten Frame nach dem Außentemperatur-Pattern.
 
-    Neuer Ansatz: Suche nach [00 00] [S16-value] [FF 02] Pattern.
-    Die 2 Bytes vor dem Value müssen 00 00 sein (Teil der DatapointId=0 Struktur).
+    Neuer Ansatz: Suche RÜCKWÄRTS von FF 02 Terminatoren.
+    Pattern: [00 00 00 00] [S16-value] [FF 02] für positive Temps
+    Pattern: [00 00 00 FF] [S16-value] [FF 02] für negative Temps (theoretisch)
 
     Beispiel: ... 32 00 00 00 00 1b ff 02 = 2.7°C
-                        ^^ ^^ = 00 00 (Marker)
-                           ^^^^ = 001b = 2.7°C
-                                ^^^^^ = FF 02 (Terminator)
+    Position:     -8 -7 -6 -5 -4 -3 -2 -1  (relativ zu FF 02 Ende)
     """
-    # Wir brauchen mindestens 6 Bytes: 00 00 + 2 Value + FF 02
-    if len(data) < 6:
+    # Wir brauchen mindestens 8 Bytes
+    if len(data) < 8:
         return False
 
-    # Suche nach Pattern: [00 00] [value] [FF 02]
-    # Das heißt: 2 Nullen, dann 2 Bytes Value, dann FF 02
-    for i in range(len(data) - 5):
-        # Prüfe ob an Position i das Pattern 00 00 XX XX FF 02 ist
-        if data[i:i+2] == b'\x00\x00':
-            raw_bytes = data[i+2:i+4]       # Der potentielle Wert
-            terminator = data[i+4:i+6]      # Sollte FF 02 sein
-
-            if terminator != b'\xff\x02':
+    # Finde alle FF 02 Terminatoren und prüfe rückwärts
+    for i in range(len(data) - 1):
+        if data[i:i+2] == b'\xff\x02':
+            # FF 02 gefunden an Position i
+            # Prüfe ob 6 Bytes davor verfügbar: [4-byte prefix] [2-byte value] [FF 02]
+            if i < 6:
                 continue
 
+            raw_bytes = data[i-2:i]      # 2 Bytes direkt vor FF 02 = Value
+            prefix = data[i-6:i-2]        # 4 Bytes davor = Prefix
+
             if DEBUG_RAW:
-                # Zeige auch was davor steht
-                pre = data[max(0,i-2):i].hex() if i >= 2 else '--'
-                print(f' [0000] @ {i}: pre={pre} value={raw_bytes.hex()} term={terminator.hex()}')
+                print(f' [FF02] @ {i}: prefix={prefix.hex()} value={raw_bytes.hex()}')
+
+            # Prüfe auf gültiges Prefix-Pattern
+            # Positive Temps: 00 00 00 00
+            # Negative Temps: Prefix endet oft auf 00 oder FF
+            valid_prefix = False
+            if prefix == b'\x00\x00\x00\x00':
+                valid_prefix = True
+            elif prefix[1:4] == b'\x00\x00\x00':
+                # Auch akzeptieren wenn nur die letzten 3 Bytes 00 sind
+                # (das erste Byte kann vom vorherigen Datenpunkt sein)
+                valid_prefix = True
+
+            if not valid_prefix:
+                continue
 
             # Überspringe Fehlercodes
             if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
@@ -253,7 +264,7 @@ def scan_for_outdoor_temp(client, data, dp):
 
             value = decode_smart(raw_bytes, dp)
             if value is not None and -40 <= value <= 50:
-                print(f' [SCAN] Außentemp: 0x{raw_bytes.hex()} = {value}°C @ pos {i+2}')
+                print(f' [SCAN] Außentemp: 0x{raw_bytes.hex()} = {value}°C @ pos {i-2}')
                 handle_output(client, dp['name'], value, dp['unit'])
                 return True
 
@@ -546,3 +557,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

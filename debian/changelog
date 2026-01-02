@@ -1,3 +1,12 @@
+hoval-gateway (2.5.3) stable; urgency=medium
+
+  * Fix outdoor temperature scanner: search backwards from FF02 terminator
+  * Pattern: find FF02, then check for [xx 00 00 00] prefix before value
+  * Accepts prefix where last 3 bytes are 00 (first byte from previous data)
+  * Reliable detection of outdoor temperature in complex frames
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Fri, 03 Jan 2025 12:00:00 +0000
+
 hoval-gateway (2.5.2) stable; urgency=medium
 
   * Rewrite outdoor temperature scanner with simplified pattern matching
