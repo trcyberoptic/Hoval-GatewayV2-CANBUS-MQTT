@@ -1,3 +1,11 @@
+hoval-gateway (2.5.1) stable; urgency=medium
+
+  * Fix positive outdoor temperature parsing
+  * Protocol uses different markers: 0xFF for negative, 0x00 for positive temps
+  * Both negative (-4.3°C) and positive (+2.7°C) outdoor temps now work
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Thu, 02 Jan 2025 10:00:00 +0000
+
 hoval-gateway (2.5.0) stable; urgency=medium
 
   * Fix DatapointId=0 (Außentemperatur) parsing
