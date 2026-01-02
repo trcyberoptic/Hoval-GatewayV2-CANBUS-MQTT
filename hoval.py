@@ -212,38 +212,50 @@ def decode_smart(raw_bytes, dp_info):
 def scan_for_outdoor_temp(client, data, dp):
     """
     Scannt den gesamten Frame nach dem Außentemperatur-Pattern.
-    Erkanntes Format: ... 00 00 00 00 [S16-value] FF 02
-    Beispiel: 00 00 04 10 01 42 32 00 00 00 00 1b ff 02 = 2.7°C
-    """
-    for i in range(len(data) - 7):
-        # Suche nach Pattern: [value] FF 02 am Ende
-        # Prüfe ob wir 2 Bytes vor FF 02 sind
-        if data[i+2:i+4] == b'\xff\x02':
-            raw_bytes = data[i:i+2]
 
-            # Überspringe offensichtliche Fehlercodes
+    Neuer Ansatz: Suche nach [00 00] [S16-value] [FF 02] Pattern.
+    Die 2 Bytes vor dem Value müssen 00 00 sein (Teil der DatapointId=0 Struktur).
+
+    Beispiel: ... 32 00 00 00 00 1b ff 02 = 2.7°C
+                        ^^ ^^ = 00 00 (Marker)
+                           ^^^^ = 001b = 2.7°C
+                                ^^^^^ = FF 02 (Terminator)
+    """
+    # Wir brauchen mindestens 6 Bytes: 00 00 + 2 Value + FF 02
+    if len(data) < 6:
+        return False
+
+    # Suche nach Pattern: [00 00] [value] [FF 02]
+    # Das heißt: 2 Nullen, dann 2 Bytes Value, dann FF 02
+    for i in range(len(data) - 5):
+        # Prüfe ob an Position i das Pattern 00 00 XX XX FF 02 ist
+        if data[i:i+2] == b'\x00\x00':
+            raw_bytes = data[i+2:i+4]       # Der potentielle Wert
+            terminator = data[i+4:i+6]      # Sollte FF 02 sein
+
+            if terminator != b'\xff\x02':
+                continue
+
+            if DEBUG_RAW:
+                # Zeige auch was davor steht
+                pre = data[max(0,i-2):i].hex() if i >= 2 else '--'
+                print(f' [0000] @ {i}: pre={pre} value={raw_bytes.hex()} term={terminator.hex()}')
+
+            # Überspringe Fehlercodes
             if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
+                if DEBUG_RAW:
+                    print(f'   -> Fehlercode übersprungen: {raw_bytes.hex()}')
                 continue
             if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+                if DEBUG_RAW:
+                    print(f'   -> Fehlercode-Bereich übersprungen: {raw_bytes.hex()}')
                 continue
 
-            # Prüfe ob es 4x 0x00 davor gibt (charakteristisch für Außentemp)
-            if i >= 4 and data[i-4:i] == b'\x00\x00\x00\x00':
-                value = decode_smart(raw_bytes, dp)
-                if value is not None and -40 <= value <= 50:
-                    if DEBUG_RAW:
-                        print(f' [SCAN] Außentemp @ {i}: value=0x{raw_bytes.hex()} = {value}°C')
-                    handle_output(client, dp['name'], value, dp['unit'])
-                    return True
-
-            # Alternativ: Prüfe ob es 00 00 00 FF davor gibt (für negative Temps)
-            if i >= 4 and data[i-4:i] == b'\x00\x00\x00\xff':
-                value = decode_smart(raw_bytes, dp)
-                if value is not None and -40 <= value <= 50:
-                    if DEBUG_RAW:
-                        print(f' [SCAN] Außentemp @ {i}: value=0x{raw_bytes.hex()} = {value}°C (neg marker)')
-                    handle_output(client, dp['name'], value, dp['unit'])
-                    return True
+            value = decode_smart(raw_bytes, dp)
+            if value is not None and -40 <= value <= 50:
+                print(f' [SCAN] Außentemp: 0x{raw_bytes.hex()} = {value}°C @ pos {i+2}')
+                handle_output(client, dp['name'], value, dp['unit'])
+                return True
 
     return False
 
