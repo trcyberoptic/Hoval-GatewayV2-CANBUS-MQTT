@@ -144,16 +144,17 @@ def decode_smart(raw_bytes, dp_info):
         elif type_name == 'S16':
             # S16 Fehlercodes:
             # - 0xFFFF = -1 (raw) - klassischer Null-Wert
-            # - 0xFF00 bis 0xFF05 = -256 bis -251 → -25.6 bis -25.1°C (Fehlercodes)
+            # - 0xFF00 bis 0xFF01 = -256 bis -255 → -25.6 bis -25.5°C (Fehlercodes)
             # - 0x00FF = 255 → 25.5°C (bereits im Anomalie-Filter)
             # Aber NICHT alle 0xFF-High-Bytes filtern, da echte negative Temps
-            # z.B. -1.0°C = 0xFFF6, -5.0°C = 0xFFCE, -12.8°C = 0xFF80
+            # z.B. -1.0°C = 0xFFF6, -1.1°C = 0xFFF5, -5.0°C = 0xFFCE, -12.8°C = 0xFF80
             if raw_bytes == b'\xff\xff':
                 if DEBUG_RAW:
                     print(f' [NULL] {dp_info["name"]}: S16=0xFFFF (Fehlercode)')
                 return None
-            # Fehlercodes 0xFF00-0xFF05 filtern (resultiert in -25.6 bis -25.1°C)
-            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+            # Nur 0xFF00-0xFF01 filtern (resultiert in -25.6 bis -25.5°C)
+            # 0xFF02+ sind echte negative Temperaturen!
+            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x01:
                 if DEBUG_RAW:
                     print(f' [NULL] {dp_info["name"]}: S16={raw_bytes.hex()} (Fehlercode-Bereich)')
                 return None
@@ -215,10 +216,15 @@ def scan_for_outdoor_temp(client, data, dp):
 
     Neuer Ansatz: Suche RÜCKWÄRTS von FF 02 Terminatoren.
     Pattern: [00 00 00 00] [S16-value] [FF 02] für positive Temps
-    Pattern: [00 00 00 FF] [S16-value] [FF 02] für negative Temps (theoretisch)
+    Pattern: [xx 00 00 00] [S16-value] [FF 02] allgemein (xx = Vorgänger-Byte)
 
-    Beispiel: ... 32 00 00 00 00 1b ff 02 = 2.7°C
-    Position:     -8 -7 -6 -5 -4 -3 -2 -1  (relativ zu FF 02 Ende)
+    Beispiel positiv: ... 32 00 00 00 00 1b ff 02 = 2.7°C (0x001B)
+    Beispiel negativ: ... 00 00 00 00 ff f5 ff 02 = -1.1°C (0xFFF5)
+    Position:            -8 -7 -6 -5 -4 -3 -2 -1  (relativ zu FF 02 Ende)
+
+    Negative Temperaturen (S16):
+    - -1.0°C = 0xFFF6, -1.1°C = 0xFFF5, -5.0°C = 0xFFCE, etc.
+    - Das High-Byte 0xFF ist KEIN Fehlercode, sondern das Vorzeichen!
     """
     # Wir brauchen mindestens 8 Bytes
     if len(data) < 8:
@@ -236,11 +242,18 @@ def scan_for_outdoor_temp(client, data, dp):
             prefix = data[i - 6 : i - 2]  # 4 Bytes davor = Prefix
 
             if DEBUG_RAW:
-                print(f' [FF02] @ {i}: prefix={prefix.hex()} value={raw_bytes.hex()}')
+                # Zeige mehr Kontext: 10 Bytes vor FF 02
+                context_start = max(0, i - 10)
+                context = data[context_start : i + 2]
+                print(f' [FF02] @ {i}: prefix={prefix.hex()} value={raw_bytes.hex()} context={context.hex()}')
 
             # Prüfe auf gültiges Prefix-Pattern
-            # Positive Temps: 00 00 00 00
-            # Negative Temps: Prefix endet oft auf 00 oder FF
+            # Das Prefix muss mindestens 2x 0x00 aufeinanderfolgend haben
+            # Mögliche Patterns:
+            # - 00 00 00 00 (Standard für positive Temps)
+            # - xx 00 00 00 (xx = beliebiges Vorgänger-Byte)
+            # - 00 00 00 xx (möglich bei negativen Temps?)
+            # - xx 00 00 xx (auch möglich?)
             valid_prefix = False
             if prefix == b'\x00\x00\x00\x00':
                 valid_prefix = True
@@ -248,25 +261,56 @@ def scan_for_outdoor_temp(client, data, dp):
                 # Auch akzeptieren wenn nur die letzten 3 Bytes 00 sind
                 # (das erste Byte kann vom vorherigen Datenpunkt sein)
                 valid_prefix = True
+            elif prefix[0:3] == b'\x00\x00\x00':
+                # Alternative: Die ersten 3 Bytes sind 00
+                # (das letzte Byte könnte Teil des Temperaturwerts sein bei 4-byte Kodierung?)
+                valid_prefix = True
+            elif prefix[1:3] == b'\x00\x00':
+                # Noch lockerer: Mindestens 2 aufeinanderfolgende Nullen in der Mitte
+                valid_prefix = True
 
             if not valid_prefix:
                 continue
 
-            # Überspringe Fehlercodes
-            if raw_bytes in [b'\xff\xff', b'\x00\xff', b'\x00\x00']:
+            # Überspringe echte Fehlercodes (NICHT negative Temperaturen!)
+            # 0xFFFF = -1 (klassischer Null-Wert für S16)
+            # 0xFF02 = Frame-Terminator (KEIN echter Temperaturwert!)
+            # 0x00FF = 255 → 25.5°C (Fehlercode, wird später als Anomalie gefiltert)
+            # 0x0000 = 0 → 0.0°C (oft Fehlercode bei Außentemp)
+            # 0xFF00-0xFF01 = Fehlercodes (-25.6 bis -25.5°C Bereich)
+            # ABER: 0xFFF5 = -11 → -1.1°C ist KEIN Fehlercode!
+            # ABER: 0xFF02 könnte theoretisch -25.4°C sein - praktisch unmöglich
+            if raw_bytes == b'\xff\xff':
                 if DEBUG_RAW:
-                    print(f'   -> Fehlercode übersprungen: {raw_bytes.hex()}')
+                    print(f'   -> Fehlercode 0xFFFF übersprungen')
                 continue
-            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x05:
+            if raw_bytes == b'\xff\x02':
+                # Das ist der Frame-Terminator, nicht ein Temperaturwert!
                 if DEBUG_RAW:
-                    print(f'   -> Fehlercode-Bereich übersprungen: {raw_bytes.hex()}')
+                    print(f'   -> Frame-Terminator 0xFF02 übersprungen')
                 continue
+            if raw_bytes == b'\x00\x00':
+                if DEBUG_RAW:
+                    print(f'   -> Fehlercode 0x0000 übersprungen')
+                continue
+            # Nur 0xFF00-0xFF01 sind Fehlercodes (nicht 0xFF02+, das sind echte negative Temps)
+            # 0xFF00 = -25.6°C, 0xFF01 = -25.5°C (bekannter Fehlercode)
+            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x01:
+                if DEBUG_RAW:
+                    print(f'   -> Fehlercode-Bereich 0xFF00-0xFF01 übersprungen: {raw_bytes.hex()}')
+                continue
+
+            # DEBUG: Zeige auch gültige Kandidaten die durch decode_smart gehen
+            if DEBUG_RAW:
+                print(f'   -> Gültiger Kandidat mit prefix={prefix.hex()}, versuche decode...')
 
             value = decode_smart(raw_bytes, dp)
             if value is not None and -40 <= value <= 50:
                 print(f' [SCAN] Außentemp: 0x{raw_bytes.hex()} = {value}°C @ pos {i - 2}')
                 handle_output(client, dp['name'], value, dp['unit'])
                 return True
+            elif DEBUG_RAW and value is not None:
+                print(f'   -> Wert {value}°C außerhalb Bereich -40..50')
 
     return False
 
