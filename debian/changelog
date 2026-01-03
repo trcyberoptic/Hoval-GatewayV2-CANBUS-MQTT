@@ -1,3 +1,13 @@
+hoval-gateway (2.5.4) stable; urgency=medium
+
+  * Fix negative outdoor temperature detection (e.g., -0.7°C, -1.1°C)
+  * Reduce S16 error code range from 0xFF00-0xFF05 to 0xFF00-0xFF01
+  * Allow prefix pattern [00 00 00 FF] for negative temps (sign extension)
+  * Add explicit filter for 0xFF02 frame terminator
+  * Negative temps like 0xFFF5 (-1.1°C) are now correctly recognized
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Fri, 03 Jan 2025 14:00:00 +0000
+
 hoval-gateway (2.5.3) stable; urgency=medium
 
   * Fix outdoor temperature scanner: search backwards from FF02 terminator

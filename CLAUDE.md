@@ -52,10 +52,12 @@ Home Automation Systems
 
 ### Special Case: DatapointId=0 (Outdoor Temperature)
 DatapointId=0 ("Temperatur Aussenluft") uses a different protocol format that cannot be parsed with the standard ID-based approach:
-- **Pattern**: `[xx 00 00 00] [S16-value] [FF 02]`
-- Example frame: `00 00 04 10 01 42 32 00 00 00 00 1b ff 02` = 2.7°C
-- The scanner searches backwards from `FF 02` terminators, checking if the 4 bytes before the value have at least the last 3 bytes as `00 00 00`
-- This handles cases where a previous data byte (e.g., `32`) precedes the pattern
+- **Pattern**: `[xx 00 00 00] [S16-value] [FF 02]` or `[00 00 00 xx] [S16-value] [FF 02]`
+- Example positive: `... 32 00 00 00 00 1b ff 02` = 2.7°C (0x001B)
+- Example negative: `... 00 00 00 ff ff fa ff 02` = -0.6°C (0xFFFA)
+- The scanner searches backwards from `FF 02` terminators, accepting prefixes with at least 2-3 consecutive `00` bytes
+- Negative temperatures use 0xFF high-byte (sign extension): -1.1°C = 0xFFF5, -0.7°C = 0xFFF9
+- Frame terminator `0xFF02` is explicitly filtered to prevent false positives
 
 ### Type System
 | Type | Bytes | Format | Null Value |
@@ -80,10 +82,10 @@ The application implements multiple filtering layers to prevent invalid data (9 
 - Keywords in `IGNORE_KEYWORDS` (default: `["VOC", "voc", "Luftqualität"]`)
 - Datapoints with blacklisted names are never loaded into memory
 
-### 3. S16 Null Detection ([hoval.py:144-159](hoval.py#L144-L159))
+### 3. S16 Null Detection ([hoval.py:144-160](hoval.py#L144-L160))
 - `0xFFFF` (raw bytes) as classic null value
-- `0xFF00` to `0xFF05` (= -25.6°C to -25.1°C) - error code range
-- Does NOT filter other `0xFF` high-bytes - negative temperatures use these! (e.g., -1.0°C = `0xFFF6`)
+- `0xFF00` to `0xFF01` (= -25.6°C to -25.5°C) - error code range
+- Does NOT filter other `0xFF` high-bytes - negative temperatures use these! (e.g., -1.1°C = `0xFFF5`, -0.7°C = `0xFFF9`)
 - Also filters `0x0000` in NOPREFIX path
 
 ### 4. Type-Specific Null Values
