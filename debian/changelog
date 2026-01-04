@@ -1,3 +1,11 @@
+hoval-gateway (2.5.5) stable; urgency=medium
+
+  * Fix -25.4°C false reading (0xFF02 frame terminator misinterpreted as S16)
+  * Extend S16 error code filter from 0xFF00-0xFF01 to 0xFF00-0xFF02
+  * Affects indoor sensors (Abluft, Zuluft) where temps below -25°C are unrealistic
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Sat, 04 Jan 2025 12:00:00 +0000
+
 hoval-gateway (2.5.4) stable; urgency=medium
 
   * Fix negative outdoor temperature detection (e.g., -0.7°C, -1.1°C)

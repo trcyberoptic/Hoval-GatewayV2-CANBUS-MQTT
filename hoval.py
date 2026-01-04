@@ -152,9 +152,10 @@ def decode_smart(raw_bytes, dp_info):
                 if DEBUG_RAW:
                     print(f' [NULL] {dp_info["name"]}: S16=0xFFFF (Fehlercode)')
                 return None
-            # Nur 0xFF00-0xFF01 filtern (resultiert in -25.6 bis -25.5°C)
-            # 0xFF02+ sind echte negative Temperaturen!
-            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x01:
+            # 0xFF00-0xFF02 filtern (resultiert in -25.6 bis -25.4°C)
+            # 0xFF02 ist der Frame-Terminator, der manchmal als Daten fehlinterpretiert wird
+            # Echte Temperaturen unter -25°C sind bei Innenraum-Sensoren unrealistisch
+            if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x02:
                 if DEBUG_RAW:
                     print(f' [NULL] {dp_info["name"]}: S16={raw_bytes.hex()} (Fehlercode-Bereich)')
                 return None
