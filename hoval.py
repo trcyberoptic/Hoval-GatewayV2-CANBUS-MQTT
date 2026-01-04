@@ -283,16 +283,16 @@ def scan_for_outdoor_temp(client, data, dp):
             # ABER: 0xFF02 könnte theoretisch -25.4°C sein - praktisch unmöglich
             if raw_bytes == b'\xff\xff':
                 if DEBUG_RAW:
-                    print(f'   -> Fehlercode 0xFFFF übersprungen')
+                    print('   -> Fehlercode 0xFFFF übersprungen')
                 continue
             if raw_bytes == b'\xff\x02':
                 # Das ist der Frame-Terminator, nicht ein Temperaturwert!
                 if DEBUG_RAW:
-                    print(f'   -> Frame-Terminator 0xFF02 übersprungen')
+                    print('   -> Frame-Terminator 0xFF02 übersprungen')
                 continue
             if raw_bytes == b'\x00\x00':
                 if DEBUG_RAW:
-                    print(f'   -> Fehlercode 0x0000 übersprungen')
+                    print('   -> Fehlercode 0x0000 übersprungen')
                 continue
             # Nur 0xFF00-0xFF01 sind Fehlercodes (nicht 0xFF02+, das sind echte negative Temps)
             # 0xFF00 = -25.6°C, 0xFF01 = -25.5°C (bekannter Fehlercode)
