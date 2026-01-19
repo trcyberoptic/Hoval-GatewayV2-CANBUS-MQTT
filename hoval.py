@@ -172,6 +172,11 @@ def decode_smart(raw_bytes, dp_info):
                 if DEBUG_RAW:
                     print(f' [NULL] {dp_info["name"]}: U16=65535 (Fehlercode)')
                 return None
+            # 0xFF02 (65282) ist der Frame-Terminator, kein echter Wert
+            if val == 65282:
+                if DEBUG_RAW:
+                    print(f' [NULL] {dp_info["name"]}: U16=65282/0xFF02 (Frame-Terminator)')
+                return None
 
         elif type_name == 'S32':
             val = struct.unpack('>i', raw_bytes[0:4])[0]
@@ -500,6 +505,18 @@ def handle_output(client, name, value, unit):
         .replace('ß', 'ss')
         .replace('.', '')
         .replace('/', '_')
+        .replace('(', '')
+        .replace(')', '')
+        .replace('[', '')
+        .replace(']', '')
+        .replace('{', '')
+        .replace('}', '')
+        .replace("'", '')
+        .replace('"', '')
+        .replace('!', '')
+        .replace('?', '')
+        .replace('#', '')
+        .replace('+', '')
         .lower()
     )
 
