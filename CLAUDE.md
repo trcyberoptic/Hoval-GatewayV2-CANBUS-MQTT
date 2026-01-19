@@ -64,7 +64,7 @@ DatapointId=0 ("Temperatur Aussenluft") uses a different protocol format that ca
 |------|-------|--------|------------|
 | U8 | 1 | Unsigned 8-bit | `0xFF` (255) |
 | S16 | 2 | Signed 16-bit BE | `0x8000` (-32768) or `0x7FFF` (32767) |
-| U16 | 2 | Unsigned 16-bit BE | `0xFFFF` (65535) |
+| U16 | 2 | Unsigned 16-bit BE | `0xFFFF` (65535) or `0xFF02` (65282) |
 | S32 | 4 | Signed 32-bit BE | `0x80000000` (-2147483648) |
 | U32 | 4 | Unsigned 32-bit BE | `0xFFFFFFFF` (4294967295) |
 
@@ -271,8 +271,10 @@ Example: `homeassistant/sensor/hoval/aussenluft_temp/config`
 German datapoint names are normalized for MQTT topics:
 - Spaces → underscores
 - German umlauts: `ä→ae`, `ö→oe`, `ü→ue`, `ß→ss`
-- Remove: `.` and `/`
+- Remove: `.`, `/`, `()`, `[]`, `{}`, `'`, `"`, `!`, `?`, `#`, `+`
 - Lowercase
+
+**Note:** Home Assistant 2025+ requires clean topic names. Parentheses and special characters in discovery topics will cause "illegal discovery topic" errors.
 
 ## Error Handling & Reconnection
 
