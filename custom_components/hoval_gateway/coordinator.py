@@ -5,7 +5,6 @@ import asyncio
 import csv
 import logging
 import os
-import socket
 import struct
 from datetime import timedelta
 from typing import Any
@@ -13,7 +12,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_IGNORE_KEYWORDS,
@@ -163,10 +162,10 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _process_stream(self, data: bytes) -> bytes:
         """Process binary stream data."""
-        # Process all complete frames
-        while b'\\xff\\x01' in data:
-            idx = data.index(b'\\xff\\x01')
-            next_idx = data.find(b'\\xff\\x01', idx + 2)
+        # Process all complete frames (frame delimiter: 0xFF 0x01)
+        while b'\xff\x01' in data:
+            idx = data.index(b'\xff\x01')
+            next_idx = data.find(b'\xff\x01', idx + 2)
 
             if next_idx == -1:
                 # Incomplete frame
@@ -224,8 +223,8 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
                     return None
                 raw_bytes = data[offset:offset+2]
 
-                # Filter error codes
-                if raw_bytes == b'\\xff\\xff':
+                # Filter error codes (0xFFFF = null value)
+                if raw_bytes == b'\xff\xff':
                     return None
                 if raw_bytes[0] == 0xFF and 0x00 <= raw_bytes[1] <= 0x05:
                     return None

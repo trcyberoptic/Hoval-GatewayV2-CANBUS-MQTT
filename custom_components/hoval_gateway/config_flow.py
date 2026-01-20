@@ -1,6 +1,7 @@
 """Config flow for Hoval Gateway integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -23,25 +24,22 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Test connection helper
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    import socket
-    import asyncio
-
     host = data[CONF_HOST]
     port = data[CONF_PORT]
 
-    # Test TCP connection
+    # Test TCP connection using asyncio
     try:
-        await asyncio.wait_for(
-            asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: socket.create_connection((host, port), timeout=5)
-            ),
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port),
             timeout=10
         )
-    except Exception as err:
+        writer.close()
+        await writer.wait_closed()
+    except asyncio.TimeoutError as err:
+        raise ConnectionError(f"Connection to {host}:{port} timed out") from err
+    except OSError as err:
         raise ConnectionError(f"Cannot connect to {host}:{port}: {err}") from err
 
     return {"title": f"Hoval Gateway ({host})"}
