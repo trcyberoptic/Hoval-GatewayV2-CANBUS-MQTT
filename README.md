@@ -54,10 +54,10 @@ Für Installationen außerhalb von Home Assistant oder als separater Service:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.5.1_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.5.7_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.5.1_all.deb
+sudo apt install ./hoval-gateway_2.5.7_all.deb
 
 # Konfiguration anpassen
 sudo nano /opt/hoval-gateway/config.ini
@@ -300,26 +300,44 @@ Dies stellt sicher, dass kritische Temperaturwerte (besonders Außentemperatur) 
 
 ## Filterung & Fehlerbehandlung
 
-Das Gateway implementiert mehrere Filterschichten:
+Das Gateway implementiert **9 Filterschichten** zur Vermeidung ungültiger Daten:
 
-### 1. Blacklist beim Laden
-Datenpunkte mit Keywords in `IGNORE_KEYWORDS` werden nicht geladen.
+### 1. Unit ID Filter
+Nur Datenpunkte mit der konfigurierten `unit_id` (Standard: 513) werden geladen. Verhindert Duplikate von mehreren Units.
 
-### 2. Fehlercode-Erkennung
-- `0xFF` (255) für U8-Werte
-- `0xFFFF` (65535) für U16-Werte
-- `-32768` / `32767` für S16-Werte
-- Null-Werte bei S32/U32
+### 2. Blacklist beim Laden
+Datenpunkte mit Keywords in `ignore_keywords` werden nie in den Speicher geladen.
 
-### 3. Anomalie-Filter
-- `25.5°C` (bekannter Fehlercode bei Temperaturen)
+### 3. S16 Null Detection
+- `0xFFFF` (raw bytes) als klassischer Null-Wert
+- `0xFF00` bis `0xFF02` (= -25.6°C bis -25.4°C) - Fehlercode-Bereich
+- `0xFF02` ist der Frame-Terminator, der manchmal als Daten fehlinterpretiert wird
+- Andere `0xFF` High-Bytes werden **nicht** gefiltert - negative Temperaturen nutzen diese! (z.B. -1.1°C = `0xFFF5`)
+
+### 4. Typ-spezifische Null-Werte
+| Typ | Bytes | Null-Wert |
+|-----|-------|-----------|
+| U8 | 1 | `0xFF` (255) |
+| S16 | 2 | `0x8000` (-32768) oder `0x7FFF` (32767) |
+| U16 | 2 | `0xFFFF` (65535) oder `0xFF02` (65282) |
+| S32 | 4 | `0x80000000` (-2147483648) |
+| U32 | 4 | `0xFFFFFFFF` (4294967295) |
+
+### 5. Anomalie-Filter
+- `25.5°C` und `-25.5°C` Temperaturwerte (häufige Fehlercodes von `0x00FF` und `0xFF01`)
 - `112.0` (fehlerhafte VOC-Messung)
-- `0.0°C` bei Außentemperatur (häufiger Fehlercode, echte 0°C sind selten genug zum Filtern)
+- `0.0°C` für Außentemperatur ("Aussen") - häufiger Fehlercode
 
-### 4. Plausibilitätsprüfung
+### 6. Plausibilitätsprüfung
 Temperaturen müssen im Bereich `-40°C` bis `70°C` liegen.
 
-### 5. Change Detection
+### 7. Sprung-Erkennung (Jump Detection)
+Im NOPREFIX-Pfad werden Temperaturänderungen > 20°C abgelehnt. Verhindert Fehlalarme durch zufällige Byte-Muster.
+
+### 8. Initial Value Filter
+Filtert `0.0°C` beim ersten Lesen (wenn kein vorheriger Wert existiert). Häufiger Fehlercode beim Verbindungsaufbau. Nach dem ersten gültigen Wert greift die normale Sprung-Erkennung.
+
+### 9. Change Detection
 MQTT-Nachrichten werden nur bei Wertänderungen gesendet (Traffic-Reduktion).
 
 ## Wichtige Datenpunkte
@@ -425,7 +443,8 @@ Hoval-GatewayV2-CANBUS-MQTT/
 ### CAN-BUS Binary Protocol
 
 - **Frame-Delimiter**: `\xff\x01`
-- **Datenpunkt-ID**: 2 Bytes (Big-Endian)
+- **Primäres Format**: Datenpunkt-IDs sind 3 Bytes: `\x00` + 2-Byte Big-Endian ID
+- **Fallback-Format** (IDs 0-5): Direkte 2-Byte Big-Endian ID ohne Prefix
 - **Wert**: 1-4 Bytes je nach Typ
 - **Typen**: U8, S16, U16, S32, U32, LIST
 
@@ -434,8 +453,17 @@ Beispiel (Hex):
 FF 01 00 00 00 64 00 01 01 2C ...
       └──┬──┘ └─┬─┘ └──┬──┘
       ID=0   Wert  ID=1
-      (2B)   (2B)  (2B)
+      (3B)   (2B)  (3B)
 ```
+
+### Sonderfall: DatapointId=0 (Außentemperatur)
+
+DatapointId=0 ("Temperatur Aussenluft") verwendet ein anderes Protokoll-Format:
+- **Pattern**: `[xx 00 00 00] [S16-Wert] [FF 02]` oder `[00 00 00 xx] [S16-Wert] [FF 02]`
+- Der Scanner sucht rückwärts von `FF 02` Terminatoren
+- **Beispiel positiv**: `... 32 00 00 00 00 1b ff 02` = 2.7°C (0x001B)
+- **Beispiel negativ**: `... 00 00 00 ff ff fa ff 02` = -0.6°C (0xFFFA)
+- Negative Temperaturen nutzen 0xFF High-Byte (Vorzeichenerweiterung): -1.1°C = 0xFFF5
 
 ### Wert-Dekodierung
 
@@ -447,6 +475,13 @@ Beispiel:
 - Raw: `0x00C8` = 200
 - Decimal: 1
 - Ergebnis: `200 / 10 = 20.0°C`
+
+## State Management
+
+Drei globale Datenstrukturen verwalten den Zustand:
+- **`datapoint_map`** - CSV-Konfigurations-Cache (einmal beim Start geladen)
+- **`last_sent`** - Change Detection Cache (verhindert doppelte MQTT-Publishes)
+- **`discovered_topics`** - Set der Sensor-Namen, die bereits discovered wurden (verhindert doppelte Discovery-Configs)
 
 ## Lizenz
 
@@ -461,14 +496,39 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.5.1 (Aktuell)
+### Version 2.5.7 (Aktuell)
+- ✅ **Home Assistant 2025 Kompatibilität**: MQTT Discovery Topic-Namen bereinigt
+- ✅ Entfernt Klammern und Sonderzeichen `()[]{}'"!?#+` aus Topic-Namen
+- ✅ Filter für U16 Frame-Terminator `0xFF02` (65282)
+
+### Version 2.5.6
+- ✅ **Ruff Lint Fixes**: F541 f-string ohne Platzhalter behoben
+
+### Version 2.5.5
+- ✅ **Bugfix: -25.4°C Fehllesung**: `0xFF02` Frame-Terminator wurde als S16-Wert fehlinterpretiert
+- ✅ S16 Fehlercode-Filter erweitert von `0xFF00-0xFF01` auf `0xFF00-0xFF02`
+
+### Version 2.5.4
+- ✅ **Bugfix: Negative Außentemperaturen** (z.B. -0.7°C, -1.1°C)
+- ✅ S16 Fehlercode-Bereich reduziert von `0xFF00-0xFF05` auf `0xFF00-0xFF01`
+- ✅ Prefix-Pattern `[00 00 00 FF]` für negative Temps erlaubt (Vorzeichenerweiterung)
+- ✅ Expliziter Filter für `0xFF02` Frame-Terminator
+
+### Version 2.5.3
+- ✅ **Außentemperatur-Scanner**: Rückwärtssuche von FF02-Terminator
+- ✅ Pattern: FF02 finden, dann `[xx 00 00 00]` Prefix vor dem Wert prüfen
+
+### Version 2.5.2
+- ✅ **Neuer Außentemperatur-Scanner**: Vereinfachtes Pattern-Matching
+- ✅ Pattern: `[00 00] [Wert] [FF 02]` - nur 2 Null-Bytes vor dem Wert nötig
+
+### Version 2.5.1
 - ✅ **Bugfix: Positive Außentemperaturen**: Marker-Byte unterscheidet sich je nach Vorzeichen
 - ✅ Negativ: `00 00 00 FF [Wert]` (z.B. -4.3°C)
 - ✅ Positiv: `00 00 00 00 [Wert]` (z.B. +2.7°C)
 
 ### Version 2.5.0
 - ✅ **Bugfix: Negative Außentemperaturen**: DatapointId=0 verwendet spezielles Protokoll-Format
-- ✅ **Korrekte Erkennung**: Außentemperaturen wie -4.3°C werden jetzt korrekt gelesen
 - ✅ Protokoll-Format für ID=0: `00 00 00 FF [Wert]` statt `00 00 00 [Wert]`
 
 ### Version 2.4.3
@@ -476,59 +536,44 @@ Bei Problemen oder Fragen:
 - ✅ dpkg fragt nun nach, wenn sich die Konfigurationsdatei geändert hat
 
 ### Version 2.4.2
-- ✅ **Bugfix: -25.4°C Fehlercode**: Werte von -25.1°C bis -25.6°C (`0xFF00`-`0xFF05`) werden jetzt als Fehlercodes gefiltert
+- ✅ **Bugfix: -25.4°C Fehlercode**: Werte von -25.1°C bis -25.6°C (`0xFF00`-`0xFF05`) als Fehlercodes gefiltert
 - ✅ **Erweiterter Anomalie-Filter**: Sowohl `25.5°C` als auch `-25.5°C` werden als Fehlercodes erkannt
 
 ### Version 2.4.1
 - ✅ **Bugfix: Negative Temperaturen**: S16-Decoder filterte fälschlicherweise Temperaturen von -0.1°C bis -12.8°C
-- ✅ **Ursache**: Einzelne `0xFF`-Bytes wurden als Fehlercode interpretiert, obwohl sie bei negativen Zahlen normal sind
 - ✅ **Jetzt korrekt**: Nur noch `0xFFFF` (komplett) wird als Fehlercode behandelt
 
 ### Version 2.4.0
 - ✅ **Externe Konfigurationsdatei**: Alle Einstellungen in `config.ini`
-- ✅ **Keine Code-Änderungen nötig**: Benutzer müssen `hoval.py` nicht mehr editieren
 - ✅ **INI-Format**: Einfach lesbare und editierbare Konfiguration
 
 ### Version 2.3.2
 - ✅ **MQTT Error Logging**: Detaillierte Fehlermeldungen bei Auth-Fehlern und Verbindungsabbrüchen
-- ✅ **on_connect/on_disconnect Callbacks**: Klare Diagnose bei MQTT-Problemen
 
 ### Version 2.3.1
 - ✅ **Fix: Unbuffered Output** für korrektes systemd Logging
-- ✅ **PYTHONUNBUFFERED=1** Environment-Variable im Service
 - ✅ **Ruff Linting** mit GitHub Actions CI
-- ✅ **Dependabot** für automatische Dependency-Updates
 
 ### Version 2.3.0
 - ✅ **Debian-Paketierung**: Fertiges `.deb`-Paket für einfache Installation
 - ✅ **Systemd-Service**: `hoval-gateway.service` mit Security-Hardening
 - ✅ **Log-Rotation**: Automatische Rotation nach `/var/log/hoval-gateway/`
 - ✅ **GitHub Actions CI/CD**: Automatische Builds bei neuen Tags
-- ✅ Dedizierter `hoval` System-Benutzer
 
 ### Version 2.2
-- ✅ **Home Assistant MQTT Auto-Discovery**: Automatische Sensor-Registrierung ohne manuelle Konfiguration
-- ✅ **Retained Messages**: Alle MQTT-Nachrichten werden persistent gespeichert
-- ✅ **Smart Device Grouping**: Alle Sensoren erscheinen unter einem gemeinsamen Device
-- ✅ **Automatische device_class und Icons**: Intelligente Zuweisung basierend auf Sensor-Typ
-- ✅ Discovery nur beim ersten Wert pro Sensor (Performance-Optimierung)
+- ✅ **Home Assistant MQTT Auto-Discovery**: Automatische Sensor-Registrierung
+- ✅ **Retained Messages**: Alle MQTT-Nachrichten persistent gespeichert
+- ✅ **Smart Device Grouping**: Alle Sensoren unter einem gemeinsamen Device
 
 ### Version 2.1
 - ✅ MQTT-Authentifizierung: Unterstützung für Username/Password
-- ✅ Neue Konfigurationsparameter: `MQTT_USERNAME` und `MQTT_PASSWORD`
-- ✅ Bessere Fehlermeldungen bei MQTT-Verbindungsproblemen
-- ✅ Dokumentation für Mosquitto mit Authentifizierung
 
 ### Version 2.0
 - ✅ Hybrid-Modus: CSV + direkte Temperatur-Suche
-- ✅ Kein 0x00-Padding mehr erforderlich
-- ✅ 0.0°C ist jetzt ein gültiger Wert
-- ✅ Erweiterte Debug-Ausgaben
 - ✅ Robustere Temperatur-Erfassung
 
 ### Version 1.0
 - Initiale Version mit CSV-basiertem Lookup
-- Grundlegende Filterung und MQTT-Integration
 
 ## Danksagungen
 
