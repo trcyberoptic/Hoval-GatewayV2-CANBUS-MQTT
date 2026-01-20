@@ -18,7 +18,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, normalize_name
 from .coordinator import HovalDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,14 +64,10 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
         self._original_name = name
         self._unit = unit
 
-        # Normalize name for unique ID
-        clean_name = name.lower().replace(' ', '_')
-        clean_name = clean_name.replace('ä', 'ae').replace('ö', 'oe')
-        clean_name = clean_name.replace('ü', 'ue').replace('ß', 'ss')
-        clean_name = clean_name.replace('.', '').replace('/', '')
-        self._clean_name = clean_name
+        # Normalize name for unique ID using shared function
+        self._clean_name = normalize_name(name)
 
-        self._attr_unique_id = f"{entry.entry_id}_{clean_name}"
+        self._attr_unique_id = f"{entry.entry_id}_{self._clean_name}"
 
         # Set unit of measurement
         if unit == '°C':
