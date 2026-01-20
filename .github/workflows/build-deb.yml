@@ -22,7 +22,7 @@ jobs:
           apt-get install -y build-essential debhelper devscripts git
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Build .deb package
         run: |
@@ -37,7 +37,7 @@ jobs:
           mv ../hoval-gateway_*.changes dist/ || true
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: hoval-gateway-deb
           path: dist/*.deb
