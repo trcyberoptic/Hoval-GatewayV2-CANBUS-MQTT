@@ -1,4 +1,4 @@
-# Hoval Gateway V2 - CAN-BUS to MQTT Bridge
+# Hoval Gateway V3 - CAN-BUS to MQTT Bridge
 
 Ein Python-basiertes Gateway, das Hoval Lüftungs-/Heizungssysteme (HV-Geräte) über CAN-BUS mit MQTT-Brokern verbindet. Ideal für die Integration in Home Automation Systeme wie Home Assistant, ioBroker oder OpenHAB.
 
@@ -496,7 +496,13 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.5.7 (Aktuell)
+### Version 3.0.0 (Aktuell - Beta)
+- ✅ **Native Home Assistant Integration**: HACS-kompatible Integration ohne separaten Service
+- ✅ **UI-basierte Konfiguration**: Setup direkt in Home Assistant
+- ✅ **Kein MQTT-Broker erforderlich**: Direkte Kommunikation mit Home Assistant
+- ✅ **Automatische Updates**: Via HACS
+
+### Version 2.5.7
 - ✅ **Home Assistant 2025 Kompatibilität**: MQTT Discovery Topic-Namen bereinigt
 - ✅ Entfernt Klammern und Sonderzeichen `()[]{}'"!?#+` aus Topic-Namen
 - ✅ Filter für U16 Frame-Terminator `0xFF02` (65282)

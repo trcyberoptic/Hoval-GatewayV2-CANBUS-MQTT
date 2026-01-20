@@ -8,5 +8,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/issues",
   "requirements": [],
-  "version": "2.5.1"
+  "version": "3.0.0"
 }
