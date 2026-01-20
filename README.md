@@ -26,9 +26,31 @@ Ein Python-basiertes Gateway, das Hoval Lüftungs-/Heizungssysteme (HV-Geräte) 
 
 ## Installation
 
-### Debian/Ubuntu (Empfohlen)
+### Option 1: Home Assistant Integration via HACS (Empfohlen für HA-Nutzer)
 
-Das einfachste ist die Installation über das fertige `.deb`-Paket:
+Die einfachste Methode für Home Assistant Nutzer ist die Installation über HACS:
+
+1. **HACS installieren** (falls noch nicht vorhanden): [hacs.xyz](https://hacs.xyz/)
+2. **Repository hinzufügen**: HACS → Integrations → ⋮ → Custom repositories
+   - URL: `https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT`
+   - Kategorie: Integration
+3. **Integration installieren**: Suche nach "Hoval Gateway V2" und klicke auf "Download"
+4. **Home Assistant neustarten**
+5. **Integration konfigurieren**: Einstellungen → Geräte & Dienste → Integration hinzufügen
+
+**Vorteile:**
+- ✅ Läuft direkt in Home Assistant (kein separater Service nötig)
+- ✅ UI-basierte Konfiguration
+- ✅ Automatische Updates über HACS
+- ✅ Kein MQTT-Broker erforderlich
+
+**Ausführliche Anleitung:** Siehe [HACS_INSTALLATION.md](HACS_INSTALLATION.md)
+
+---
+
+### Option 2: Debian/Ubuntu Paket (Standalone Service)
+
+Für Installationen außerhalb von Home Assistant oder als separater Service:
 
 ```bash
 # Paket von GitHub Releases herunterladen
@@ -53,7 +75,9 @@ Das Paket installiert:
 - Log-Rotation nach `/var/log/hoval-gateway/`
 - Dedizierter `hoval` System-Benutzer
 
-### Manuelle Installation
+### Option 3: Manuelle Installation
+
+Für Entwicklung oder benutzerdefinierte Setups:
 
 1. **Repository klonen oder Dateien herunterladen**:
    ```bash

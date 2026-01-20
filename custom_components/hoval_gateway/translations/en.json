@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hoval Gateway V2",
+        "description": "Connect to your Hoval ventilation/heating system via CAN-BUS",
+        "data": {
+          "host": "IP Address",
+          "port": "Port",
+          "unit_id": "Unit ID",
+          "ignore_keywords": "Ignore Keywords (comma-separated)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Hoval device. Please check the IP address and port.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
