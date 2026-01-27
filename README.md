@@ -10,6 +10,7 @@ Ein Python-basiertes Gateway, das Hoval Lüftungs-/Heizungssysteme (HV-Geräte) 
 - **Intelligente Filterung**: 9-schichtige Fehlercode-Erkennung und Plausibilitätsprüfung
 - **Hybrid-Modus**: CSV-basierte Datenpunkt-Konfiguration + direkte Temperatur-Erfassung
 - **Automatische Wiederverbindung**: Robuste Fehlerbehandlung bei Netzwerkproblemen
+- **Watchdog**: Automatischer Reconnect wenn keine Daten mehr empfangen werden
 - **Deutsche Datenpunkt-Namen**: Automatische Normalisierung für MQTT (Umlaute → ASCII)
 - **Kein MODBUS-Gateway nötig**: Direktverbindung über Hoval Netzwerk-Modul (LAN/WIFI)
 
@@ -54,10 +55,10 @@ Für Installationen außerhalb von Home Assistant oder als separater Service:
 
 ```bash
 # Paket von GitHub Releases herunterladen
-wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.5.1_all.deb
+wget https://github.com/trcyberoptic/Hoval-GatewayV2-CANBUS-MQTT/releases/latest/download/hoval-gateway_2.6.0_all.deb
 
 # Installieren
-sudo apt install ./hoval-gateway_2.5.1_all.deb
+sudo apt install ./hoval-gateway_2.6.0_all.deb
 
 # Konfiguration anpassen
 sudo nano /opt/hoval-gateway/config.ini
@@ -131,6 +132,12 @@ topic_base = hoval/homevent
 # Auto-Discovery aktivieren
 discovery = true
 prefix = homeassistant
+
+[watchdog]
+# Automatischer Reconnect bei fehlenden Daten
+enabled = true
+# Timeout in Sekunden
+timeout = 60
 ```
 
 ## Verwendung
@@ -157,6 +164,7 @@ python hoval.py
 Lade CSV...
 64 Datenpunkte geladen (Unit 513, VOC ignoriert).
 MQTT verbunden (127.0.0.1).
+Watchdog aktiviert (Timeout: 60s)
 Starte Hoval Universal Listener...
 Verbunden mit 10.0.0.95
  [LOG] Status Lüftungsregelung       : 1
@@ -461,7 +469,17 @@ Bei Problemen oder Fragen:
 
 ## Changelog
 
-### Version 2.5.1 (Aktuell)
+### Version 2.6.0 (Aktuell)
+- ✅ **Watchdog für automatischen Reconnect**: Erzwingt Neuverbindung wenn keine Daten mehr empfangen werden
+- ✅ **Neue `[watchdog]` Konfiguration**: `enabled` und `timeout` Parameter
+- ✅ **Background-Thread**: Überwacht kontinuierlich den Datenempfang
+- ✅ Verhindert Hängenbleiben des Scripts bei stummen Verbindungen
+
+### Version 2.5.7
+- ✅ **Home Assistant 2025 Kompatibilität**: Entfernte Sonderzeichen aus Discovery-Topics
+- ✅ HA lehnt jetzt Topics mit `()`, `[]`, `{}`, `'`, `"`, `!`, `?`, `#`, `+` ab
+
+### Version 2.5.1
 - ✅ **Bugfix: Positive Außentemperaturen**: Marker-Byte unterscheidet sich je nach Vorzeichen
 - ✅ Negativ: `00 00 00 FF [Wert]` (z.B. -4.3°C)
 - ✅ Positiv: `00 00 00 00 [Wert]` (z.B. +2.7°C)
