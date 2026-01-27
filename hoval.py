@@ -5,6 +5,7 @@ import os
 import socket
 import struct
 import sys
+import threading
 import time
 
 import paho.mqtt.client as mqtt
@@ -61,10 +62,16 @@ TOPIC_BASE = _config.get('mqtt', 'topic_base', fallback='hoval/homevent')
 MQTT_HOMEASSISTANT_DISCOVERY = _config.getboolean('homeassistant', 'discovery', fallback=True)
 HOMEASSISTANT_PREFIX = _config.get('homeassistant', 'prefix', fallback='homeassistant')
 
+# Watchdog
+WATCHDOG_TIMEOUT = _config.getint('watchdog', 'timeout', fallback=60)
+WATCHDOG_ENABLED = _config.getboolean('watchdog', 'enabled', fallback=True)
+
 # Speicher
 datapoint_map = {}
 last_sent = {}
 discovered_topics = set()  # Bereits registrierte Topics für Home Assistant
+last_data_time = time.time()  # Zeitstempel der letzten empfangenen Daten
+watchdog_triggered = threading.Event()  # Signal für Watchdog-Auslösung
 
 
 # --- CSV LADEN ---
@@ -546,9 +553,34 @@ def handle_output(client, name, value, unit):
                 pass
 
 
+def watchdog_thread():
+    """
+    Watchdog-Thread: Prüft regelmäßig ob neue Daten empfangen wurden.
+    Triggert einen Reconnect wenn keine Daten innerhalb von WATCHDOG_TIMEOUT Sekunden ankommen.
+    """
+    global last_data_time
+    while True:
+        time.sleep(10)  # Prüfe alle 10 Sekunden
+        if not WATCHDOG_ENABLED:
+            continue
+
+        elapsed = time.time() - last_data_time
+        if elapsed > WATCHDOG_TIMEOUT:
+            print(f'[WATCHDOG] Keine Daten seit {int(elapsed)}s - erzwinge Reconnect...')
+            watchdog_triggered.set()
+
+
 def main():
+    global last_data_time
+
     if not load_csv():
         return
+
+    # Starte Watchdog-Thread
+    if WATCHDOG_ENABLED:
+        watchdog = threading.Thread(target=watchdog_thread, daemon=True)
+        watchdog.start()
+        print(f'Watchdog aktiviert (Timeout: {WATCHDOG_TIMEOUT}s)')
 
     client = None
     if MQTT_ENABLED:
@@ -591,16 +623,30 @@ def main():
 
     while True:
         s = None
+        watchdog_triggered.clear()  # Reset Watchdog-Signal
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(15)
             s.connect((HOVAL_IP, HOVAL_PORT))
             print(f'Verbunden mit {HOVAL_IP}')
+            last_data_time = time.time()  # Reset bei neuer Verbindung
 
             while True:
-                data = s.recv(4096)
+                # Prüfe ob Watchdog ausgelöst hat
+                if watchdog_triggered.is_set():
+                    print('[WATCHDOG] Verbindung wird getrennt...')
+                    break
+
+                try:
+                    data = s.recv(4096)
+                except socket.timeout:
+                    # Socket-Timeout ist normal, prüfe nur Watchdog
+                    continue
+
                 if not data:
                     break
+
+                last_data_time = time.time()  # Aktualisiere bei neuen Daten
 
                 parts = data.split(b'\xff\x01')
                 for part in parts:

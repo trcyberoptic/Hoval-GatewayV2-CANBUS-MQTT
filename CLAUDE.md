@@ -143,6 +143,10 @@ topic_base = hoval/homevent       # MQTT topic prefix
 [homeassistant]
 discovery = true                   # Home Assistant Auto-Discovery
 prefix = homeassistant            # Discovery prefix
+
+[watchdog]
+enabled = true                     # Enable automatic reconnect on data timeout
+timeout = 60                       # Seconds without data before forcing reconnect
 ```
 
 ## Installation
@@ -153,7 +157,7 @@ Download the `.deb` package from [GitHub Releases](https://github.com/trcyberopt
 
 ```bash
 # Install package
-sudo apt install ./hoval-gateway_2.4.0_all.deb
+sudo apt install ./hoval-gateway_2.6.0_all.deb
 
 # Edit configuration
 sudo nano /opt/hoval-gateway/config.ini
@@ -198,6 +202,7 @@ python hoval.py
 Lade CSV...
 64 Datenpunkte geladen (Unit 513, VOC ignoriert).
 MQTT verbunden (127.0.0.1).
+Watchdog aktiviert (Timeout: 60s)
 Starte Hoval Universal Listener...
 Verbunden mit 10.0.0.95
  [LOG] Status Lüftungsregelung       : 1
@@ -279,12 +284,16 @@ German datapoint names are normalized for MQTT topics:
 ## Error Handling & Reconnection
 
 - **Socket timeout**: 15 seconds
+- **Watchdog timeout**: Configurable (default 60 seconds) - forces reconnect if no data received
 - **Reconnection delay**: 10 seconds after any exception
 - **MQTT fallback**: If broker unreachable, continues in console-only mode
 - **MQTT authentication**: Supports both anonymous and authenticated connections via `username_pw_set()`
 - **MQTT error logging**: Detailed error messages via `on_connect` and `on_disconnect` callbacks
 - **CSV validation**: Checks file existence before loading
 - **Silent parsing errors**: Invalid datapoints are skipped, not fatal
+
+### Watchdog
+A background thread monitors data reception. If no data arrives within the configured timeout, the connection is forcibly closed and re-established. This prevents the script from hanging indefinitely when the Hoval device stops sending data but the TCP connection remains open.
 
 ### MQTT Error Messages
 The application logs detailed MQTT connection errors:

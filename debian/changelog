@@ -1,3 +1,12 @@
+hoval-gateway (2.6.0) stable; urgency=medium
+
+  * Add watchdog for automatic reconnect when no data received
+  * New [watchdog] config section with enabled/timeout options
+  * Background thread monitors data reception, forces reconnect after timeout
+  * Prevents script from hanging when Hoval device stops sending data
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Tue, 28 Jan 2025 12:00:00 +0000
+
 hoval-gateway (2.5.7) stable; urgency=medium
 
   * Fix Home Assistant 2025 MQTT discovery compatibility
