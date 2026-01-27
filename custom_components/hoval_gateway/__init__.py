@@ -1,4 +1,5 @@
 """The Hoval Gateway V2 integration."""
+
 from __future__ import annotations
 
 import logging
@@ -18,7 +19,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hoval Gateway from a config entry."""
-    _LOGGER.info("Setting up Hoval Gateway integration")
+    _LOGGER.info('Setting up Hoval Gateway integration')
 
     # Create coordinator
     coordinator = HovalDataUpdateCoordinator(hass, entry)
@@ -27,7 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as err:
-        raise ConfigEntryNotReady(f"Failed to connect to Hoval device: {err}") from err
+        raise ConfigEntryNotReady(f'Failed to connect to Hoval device: {err}') from err
 
     # Store coordinator
     hass.data.setdefault(DOMAIN, {})
@@ -41,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _LOGGER.info("Unloading Hoval Gateway integration")
+    _LOGGER.info('Unloading Hoval Gateway integration')
 
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

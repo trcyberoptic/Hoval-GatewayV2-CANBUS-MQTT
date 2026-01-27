@@ -1,4 +1,5 @@
 """Config flow for Hoval Gateway integration."""
+
 from __future__ import annotations
 
 import asyncio
@@ -34,16 +35,13 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # Test TCP connection
     try:
         await asyncio.wait_for(
-            asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: socket.create_connection((host, port), timeout=5)
-            ),
-            timeout=10
+            asyncio.get_event_loop().run_in_executor(None, lambda: socket.create_connection((host, port), timeout=5)),
+            timeout=10,
         )
     except Exception as err:
-        raise ConnectionError(f"Cannot connect to {host}:{port}: {err}") from err
+        raise ConnectionError(f'Cannot connect to {host}:{port}: {err}') from err
 
-    return {"title": f"Hoval Gateway ({host})"}
+    return {'title': f'Hoval Gateway ({host})'}
 
 
 class HovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -51,9 +49,7 @@ class HovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
@@ -61,13 +57,13 @@ class HovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 info = await validate_input(self.hass, user_input)
             except ConnectionError:
-                errors["base"] = "cannot_connect"
+                errors['base'] = 'cannot_connect'
             except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+                _LOGGER.exception('Unexpected exception')
+                errors['base'] = 'unknown'
             else:
                 # Create entry
-                return self.async_create_entry(title=info["title"], data=user_input)
+                return self.async_create_entry(title=info['title'], data=user_input)
 
         # Show form
         data_schema = vol.Schema(
@@ -75,12 +71,8 @@ class HovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_HOST): str,
                 vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
                 vol.Optional(CONF_UNIT_ID, default=DEFAULT_UNIT_ID): cv.positive_int,
-                vol.Optional(
-                    CONF_IGNORE_KEYWORDS, default=DEFAULT_IGNORE_KEYWORDS
-                ): str,
+                vol.Optional(CONF_IGNORE_KEYWORDS, default=DEFAULT_IGNORE_KEYWORDS): str,
             }
         )
 
-        return self.async_show_form(
-            step_id="user", data_schema=data_schema, errors=errors
-        )
+        return self.async_show_form(step_id='user', data_schema=data_schema, errors=errors)

@@ -1,4 +1,5 @@
 """DataUpdateCoordinator for Hoval Gateway."""
+
 from __future__ import annotations
 
 import asyncio
@@ -61,7 +62,7 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
         csv_path = os.path.join(os.path.dirname(__file__), 'hoval_datapoints.csv')
 
         if not os.path.exists(csv_path):
-            _LOGGER.warning("CSV file not found: %s", csv_path)
+            _LOGGER.warning('CSV file not found: %s', csv_path)
             return
 
         count = 0
@@ -101,9 +102,9 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
                     except (KeyError, ValueError):
                         continue
 
-            _LOGGER.info("Loaded %d datapoints (Unit %d)", count, self.unit_id)
+            _LOGGER.info('Loaded %d datapoints (Unit %d)', count, self.unit_id)
         except Exception as err:
-            _LOGGER.error("Failed to load CSV: %s", err)
+            _LOGGER.error('Failed to load CSV: %s', err)
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hoval device."""
@@ -128,14 +129,11 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
         while self._running:
             try:
                 # Connect to device
-                _LOGGER.info("Connecting to %s:%d", self.host, self.port)
+                _LOGGER.info('Connecting to %s:%d', self.host, self.port)
 
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(self.host, self.port),
-                    timeout=15
-                )
+                reader, writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), timeout=15)
 
-                _LOGGER.info("Connected to Hoval device")
+                _LOGGER.info('Connected to Hoval device')
 
                 # Read data
                 while self._running:
@@ -154,10 +152,10 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
                 await writer.wait_closed()
 
             except Exception as err:
-                _LOGGER.error("Connection error: %s", err)
+                _LOGGER.error('Connection error: %s', err)
 
             if self._running:
-                _LOGGER.info("Reconnecting in 10 seconds...")
+                _LOGGER.info('Reconnecting in 10 seconds...')
                 await asyncio.sleep(10)
 
     def _process_stream(self, data: bytes) -> bytes:
@@ -186,7 +184,7 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
         while i < len(frame) - 2:
             # Try standard format (0x00 prefix + 2-byte ID)
             if i + 3 <= len(frame) and frame[i] == 0x00:
-                dp_id = struct.unpack('>H', frame[i+1:i+3])[0]
+                dp_id = struct.unpack('>H', frame[i + 1 : i + 3])[0]
                 i += 3
 
                 if dp_id in self.datapoint_map:
@@ -221,7 +219,7 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
             elif type_name == 'S16':
                 if offset + 2 > len(data):
                     return None
-                raw_bytes = data[offset:offset+2]
+                raw_bytes = data[offset : offset + 2]
 
                 # Filter error codes
                 if raw_bytes == b'\\xff\\xff':
@@ -238,7 +236,7 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
             elif type_name == 'U16':
                 if offset + 2 > len(data):
                     return None
-                raw = struct.unpack('>H', data[offset:offset+2])[0]
+                raw = struct.unpack('>H', data[offset : offset + 2])[0]
                 if raw == 0xFFFF:
                     return None
                 value = raw
@@ -247,18 +245,17 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
                 if offset + 4 > len(data):
                     return None
                 fmt = '>i' if type_name == 'S32' else '>I'
-                value = struct.unpack(fmt, data[offset:offset+4])[0]
+                value = struct.unpack(fmt, data[offset : offset + 4])[0]
 
                 # Filter null values
-                if (type_name == 'S32' and value == -2147483648) or \
-                   (type_name == 'U32' and value == 4294967295):
+                if (type_name == 'S32' and value == -2147483648) or (type_name == 'U32' and value == 4294967295):
                     return None
             else:
                 return None
 
             # Apply decimal scaling
             if decimal > 0:
-                value = value / (10 ** decimal)
+                value = value / (10**decimal)
 
             return round(value, 2)
 

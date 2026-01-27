@@ -1,4 +1,5 @@
 """Sensor platform for Hoval Gateway."""
+
 from __future__ import annotations
 
 import logging
@@ -60,7 +61,7 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
 
-        self._attr_name = f"Hoval {name}"
+        self._attr_name = f'Hoval {name}'
         self._original_name = name
         self._unit = unit
 
@@ -71,21 +72,21 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
         clean_name = clean_name.replace('.', '').replace('/', '')
         self._clean_name = clean_name
 
-        self._attr_unique_id = f"{entry.entry_id}_{clean_name}"
+        self._attr_unique_id = f'{entry.entry_id}_{clean_name}'
 
         # Set unit of measurement
         if unit == '°C':
             self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
             self._attr_device_class = SensorDeviceClass.TEMPERATURE
             self._attr_state_class = SensorStateClass.MEASUREMENT
-            self._attr_icon = "mdi:thermometer"
+            self._attr_icon = 'mdi:thermometer'
         elif unit == '%':
             self._attr_native_unit_of_measurement = PERCENTAGE
             if 'feucht' in name.lower():
                 self._attr_device_class = SensorDeviceClass.HUMIDITY
-                self._attr_icon = "mdi:water-percent"
+                self._attr_icon = 'mdi:water-percent'
             elif 'lueft' in name.lower() or 'lüft' in name.lower():
-                self._attr_icon = "mdi:fan"
+                self._attr_icon = 'mdi:fan'
             self._attr_state_class = SensorStateClass.MEASUREMENT
         else:
             self._attr_native_unit_of_measurement = unit
@@ -93,10 +94,10 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
         # Device info
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name="Hoval HomeVent",
-            manufacturer="Hoval",
-            model="HomeVent",
-            sw_version="2.6.0",
+            name='Hoval HomeVent',
+            manufacturer='Hoval',
+            model='HomeVent',
+            sw_version='2.6.0',
         )
 
     @property
