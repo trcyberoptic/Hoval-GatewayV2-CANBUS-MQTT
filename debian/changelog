@@ -1,3 +1,12 @@
+hoval-gateway (2.6.2) stable; urgency=medium
+
+  * Add SIGTERM/SIGINT signal handler for clean shutdown
+  * Service now responds properly to systemctl stop/status
+  * Add TimeoutStopSec/TimeoutStartSec (30s) to systemd service
+  * Fix: systemctl status no longer hangs
+
+ -- Hoval Gateway Maintainers <noreply@github.com>  Tue, 28 Jan 2025 14:00:00 +0000
+
 hoval-gateway (2.6.1) stable; urgency=medium
 
   * Fix watchdog to immediately close socket and interrupt blocking recv()

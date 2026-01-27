@@ -2,6 +2,7 @@ import configparser
 import csv
 import json
 import os
+import signal
 import socket
 import struct
 import sys
@@ -74,6 +75,27 @@ last_data_time = time.time()  # Zeitstempel der letzten empfangenen Daten
 watchdog_triggered = threading.Event()  # Signal für Watchdog-Auslösung
 current_socket = None  # Aktueller Socket für Watchdog-Zugriff
 socket_lock = threading.Lock()  # Lock für Thread-sicheren Socket-Zugriff
+shutdown_requested = False  # Flag für sauberes Beenden
+
+
+def signal_handler(signum, frame):
+    """Handler für SIGTERM/SIGINT - ermöglicht sauberes Beenden."""
+    global shutdown_requested, current_socket
+    print(f'[SIGNAL] Empfangen: {signal.Signals(signum).name} - Beende...')
+    shutdown_requested = True
+    # Socket schließen um blockierenden recv() zu unterbrechen
+    with socket_lock:
+        if current_socket:
+            try:
+                current_socket.shutdown(socket.SHUT_RDWR)
+                current_socket.close()
+            except:
+                pass
+
+
+# Signal-Handler registrieren
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 # --- CSV LADEN ---
@@ -631,7 +653,7 @@ def main():
 
     print('Starte Hoval Universal Listener...')
 
-    while True:
+    while not shutdown_requested:
         s = None
         watchdog_triggered.clear()  # Reset Watchdog-Signal
         try:
@@ -646,7 +668,7 @@ def main():
             print(f'Verbunden mit {HOVAL_IP}')
             last_data_time = time.time()  # Reset bei neuer Verbindung
 
-            while True:
+            while not shutdown_requested:
                 # Prüfe ob Watchdog ausgelöst hat
                 if watchdog_triggered.is_set():
                     print('[WATCHDOG] Verbindung wird getrennt...')
@@ -655,8 +677,8 @@ def main():
                 try:
                     data = s.recv(4096)
                 except (TimeoutError, OSError):
-                    # Socket-Timeout oder vom Watchdog geschlossen
-                    if watchdog_triggered.is_set():
+                    # Socket-Timeout, Watchdog oder Shutdown
+                    if watchdog_triggered.is_set() or shutdown_requested:
                         break
                     continue
 
@@ -673,9 +695,10 @@ def main():
         except KeyboardInterrupt:
             break
         except Exception as e:
-            if not watchdog_triggered.is_set():
+            if not watchdog_triggered.is_set() and not shutdown_requested:
                 print(f'Reconnect... ({e})')
-            time.sleep(10)
+            if not shutdown_requested:
+                time.sleep(10)
         finally:
             with socket_lock:
                 current_socket = None
@@ -684,6 +707,8 @@ def main():
                     s.close()
                 except:
                     pass
+
+    print('Hoval Gateway beendet.')
 
 
 if __name__ == '__main__':
