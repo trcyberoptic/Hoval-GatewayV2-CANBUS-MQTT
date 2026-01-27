@@ -72,6 +72,8 @@ last_sent = {}
 discovered_topics = set()  # Bereits registrierte Topics für Home Assistant
 last_data_time = time.time()  # Zeitstempel der letzten empfangenen Daten
 watchdog_triggered = threading.Event()  # Signal für Watchdog-Auslösung
+current_socket = None  # Aktueller Socket für Watchdog-Zugriff
+socket_lock = threading.Lock()  # Lock für Thread-sicheren Socket-Zugriff
 
 
 # --- CSV LADEN ---
@@ -558,7 +560,7 @@ def watchdog_thread():
     Watchdog-Thread: Prüft regelmäßig ob neue Daten empfangen wurden.
     Triggert einen Reconnect wenn keine Daten innerhalb von WATCHDOG_TIMEOUT Sekunden ankommen.
     """
-    global last_data_time
+    global last_data_time, current_socket
     while True:
         time.sleep(10)  # Prüfe alle 10 Sekunden
         if not WATCHDOG_ENABLED:
@@ -568,10 +570,18 @@ def watchdog_thread():
         if elapsed > WATCHDOG_TIMEOUT:
             print(f'[WATCHDOG] Keine Daten seit {int(elapsed)}s - erzwinge Reconnect...')
             watchdog_triggered.set()
+            # Socket sofort schließen um blockierenden recv() zu unterbrechen
+            with socket_lock:
+                if current_socket:
+                    try:
+                        current_socket.shutdown(socket.SHUT_RDWR)
+                        current_socket.close()
+                    except:
+                        pass
 
 
 def main():
-    global last_data_time
+    global last_data_time, current_socket
 
     if not load_csv():
         return
@@ -628,6 +638,11 @@ def main():
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(15)
             s.connect((HOVAL_IP, HOVAL_PORT))
+
+            # Socket für Watchdog-Zugriff registrieren
+            with socket_lock:
+                current_socket = s
+
             print(f'Verbunden mit {HOVAL_IP}')
             last_data_time = time.time()  # Reset bei neuer Verbindung
 
@@ -639,8 +654,10 @@ def main():
 
                 try:
                     data = s.recv(4096)
-                except TimeoutError:
-                    # Socket-Timeout ist normal, prüfe nur Watchdog
+                except (TimeoutError, OSError):
+                    # Socket-Timeout oder vom Watchdog geschlossen
+                    if watchdog_triggered.is_set():
+                        break
                     continue
 
                 if not data:
@@ -656,11 +673,17 @@ def main():
         except KeyboardInterrupt:
             break
         except Exception as e:
-            print(f'Reconnect... ({e})')
+            if not watchdog_triggered.is_set():
+                print(f'Reconnect... ({e})')
             time.sleep(10)
         finally:
+            with socket_lock:
+                current_socket = None
             if s:
-                s.close()
+                try:
+                    s.close()
+                except:
+                    pass
 
 
 if __name__ == '__main__':
