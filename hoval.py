@@ -639,7 +639,7 @@ def main():
 
                 try:
                     data = s.recv(4096)
-                except socket.timeout:
+                except TimeoutError:
                     # Socket-Timeout ist normal, prüfe nur Watchdog
                     continue
 
