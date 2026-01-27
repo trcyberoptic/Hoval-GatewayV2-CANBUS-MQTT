@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -35,7 +34,7 @@ async def async_setup_entry(
 
     # Create sensors for all known datapoints
     entities = []
-    for dp_id, dp_info in coordinator.datapoint_map.items():
+    for dp_info in coordinator.datapoint_map.values():
         entities.append(
             HovalSensor(
                 coordinator,
@@ -97,7 +96,7 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
             name="Hoval HomeVent",
             manufacturer="Hoval",
             model="HomeVent",
-            sw_version="2.5.1",
+            sw_version="2.6.0",
         )
 
     @property

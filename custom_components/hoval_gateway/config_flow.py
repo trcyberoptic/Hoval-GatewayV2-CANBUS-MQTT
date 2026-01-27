@@ -1,16 +1,17 @@
 """Config flow for Hoval Gateway integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
+import socket
 from typing import Any
 
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
-import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_IGNORE_KEYWORDS,
@@ -23,11 +24,9 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Test connection helper
+
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    import socket
-    import asyncio
 
     host = data[CONF_HOST]
     port = data[CONF_PORT]

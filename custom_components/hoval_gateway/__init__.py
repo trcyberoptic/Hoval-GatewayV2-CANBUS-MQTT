@@ -1,9 +1,7 @@
 """The Hoval Gateway V2 integration."""
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform

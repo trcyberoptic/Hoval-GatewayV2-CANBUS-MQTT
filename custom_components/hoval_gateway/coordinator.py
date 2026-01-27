@@ -5,7 +5,6 @@ import asyncio
 import csv
 import logging
 import os
-import socket
 import struct
 from datetime import timedelta
 from typing import Any
@@ -13,7 +12,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_IGNORE_KEYWORDS,
@@ -148,7 +147,7 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
                         buffer += data
                         buffer = self._process_stream(buffer)
 
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         continue
 
                 writer.close()
