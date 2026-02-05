@@ -161,9 +161,9 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
     def _process_stream(self, data: bytes) -> bytes:
         """Process binary stream data."""
         # Process all complete frames
-        while b'\\xff\\x01' in data:
-            idx = data.index(b'\\xff\\x01')
-            next_idx = data.find(b'\\xff\\x01', idx + 2)
+        while b'\xff\x01' in data:
+            idx = data.index(b'\xff\x01')
+            next_idx = data.find(b'\xff\x01', idx + 2)
 
             if next_idx == -1:
                 # Incomplete frame
@@ -222,9 +222,9 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
                 raw_bytes = data[offset : offset + 2]
 
                 # Filter error codes
-                if raw_bytes == b'\\xff\\xff':
+                if raw_bytes == b'\xff\xff':
                     return None
-                if raw_bytes[0] == 0xFF and 0x00 <= raw_bytes[1] <= 0x05:
+                if raw_bytes[0] == 0xFF and raw_bytes[1] <= 0x02:
                     return None
 
                 value = struct.unpack('>h', raw_bytes)[0]
@@ -265,10 +265,28 @@ class HovalDataUpdateCoordinator(DataUpdateCoordinator):
     def _update_sensor(self, name: str, value: float, unit: str) -> None:
         """Update sensor value."""
         # Normalize name
-        clean_name = name.lower().replace(' ', '_')
-        clean_name = clean_name.replace('ä', 'ae').replace('ö', 'oe')
-        clean_name = clean_name.replace('ü', 'ue').replace('ß', 'ss')
-        clean_name = clean_name.replace('.', '').replace('/', '')
+        clean_name = (
+            name.replace(' ', '_')
+            .replace('ä', 'ae')
+            .replace('ö', 'oe')
+            .replace('ü', 'ue')
+            .replace('ß', 'ss')
+            .replace('.', '')
+            .replace('/', '_')
+            .replace('(', '')
+            .replace(')', '')
+            .replace('[', '')
+            .replace(']', '')
+            .replace('{', '')
+            .replace('}', '')
+            .replace("'", '')
+            .replace('"', '')
+            .replace('!', '')
+            .replace('?', '')
+            .replace('#', '')
+            .replace('+', '')
+            .lower()
+        )
 
         # Check for change
         if clean_name in self.last_sent and self.last_sent[clean_name] == value:

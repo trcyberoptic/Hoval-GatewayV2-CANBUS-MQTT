@@ -33,9 +33,13 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     port = data[CONF_PORT]
 
     # Test TCP connection
+    def _test_connection():
+        sock = socket.create_connection((host, port), timeout=5)
+        sock.close()
+
     try:
         await asyncio.wait_for(
-            asyncio.get_event_loop().run_in_executor(None, lambda: socket.create_connection((host, port), timeout=5)),
+            asyncio.get_event_loop().run_in_executor(None, _test_connection),
             timeout=10,
         )
     except Exception as err:
