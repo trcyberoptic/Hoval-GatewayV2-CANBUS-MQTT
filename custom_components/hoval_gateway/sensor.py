@@ -115,7 +115,7 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
             name='Hoval HomeVent',
             manufacturer='Hoval',
             model='HomeVent',
-            sw_version='2.6.1',
+            sw_version='2.6.2',
         )
 
     @property
