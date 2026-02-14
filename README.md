@@ -2,12 +2,12 @@
 
 > **Dieses Projekt wird nicht mehr aktiv weiterentwickelt.**
 >
-> Es wurde abgelöst durch die **[Hoval Connect API](https://github.com/trcyberoptic/hoval-connect-api)** - eine cloud-basierte Integration, die direkt die offizielle Hoval Connect Plattform (Azure IoT Hub) nutzt. Die neue Lösung bietet neben dem Auslesen von Sensordaten auch **Steuerungsmöglichkeiten** (Lüftungsmodus, Ventilator, Feuchtigkeit) und benötigt **keine lokale CAN-BUS-Hardware**.
+> Es wurde abgelöst durch die **[Hoval Connect API](https://github.com/trcyberoptic/hoval-connect-api)** - eine cloud-basierte Integration, die direkt die offizielle Hoval Connect Plattform (Azure IoT Hub) nutzt. Die neue Lösung bietet neben dem Auslesen von Sensordaten auch **Steuerungsmöglichkeiten** (Lüftungsmodus, Ventilator, Feuchtigkeit) und benötigt **kein Hoval Gateway Modul v2**.
 >
 > | | Dieses Projekt (V2) | [Hoval Connect API](https://github.com/trcyberoptic/hoval-connect-api) |
 > |---|---|---|
 > | Anbindung | Lokal via CAN-BUS / TCP | Cloud via Hoval Connect API |
-> | Hardware | Hoval Netzwerk-Modul erforderlich | Nur Hoval Connect Account |
+> | Hardware | Hoval Gateway Modul v2 erforderlich | Nur Hoval Connect Account |
 > | Funktionen | Nur Lesen (Sensordaten) | Lesen + Steuern |
 > | MQTT-Broker | Erforderlich | Nicht erforderlich |
 > | Home Assistant | Via MQTT oder HACS | Native HACS Integration |
