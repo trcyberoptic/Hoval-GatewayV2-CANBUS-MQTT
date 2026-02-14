@@ -2,7 +2,7 @@
 
 > **Dieses Projekt wird nicht mehr aktiv weiterentwickelt.**
 >
-> Es wurde abgelöst durch die **[Hoval Connect API](https://github.com/trcyberoptic/hoval-connect-api)** - eine cloud-basierte Integration, die direkt die offizielle Hoval Connect Plattform (Azure IoT Hub) nutzt. Die neue Lösung bietet neben dem Auslesen von Sensordaten auch **Steuerungsmöglichkeiten** (Lüftungsmodus, Ventilator, Feuchtigkeit) und benötigt **kein Hoval Gateway Modul v2**.
+> Es wurde abgelöst durch die **[Hoval Connect API](https://github.com/trcyberoptic/hoval-connect-api)** - eine cloud-basierte Integration, die direkt die offizielle Hoval Connect Plattform (Azure IoT Hub) nutzt. Die neue Lösung bietet neben dem Auslesen von Sensordaten auch **Steuerungsmöglichkeiten** (Lüftungsmodus, Ventilator, Feuchtigkeit).
 >
 > | | Dieses Projekt (V2) | [Hoval Connect API](https://github.com/trcyberoptic/hoval-connect-api) |
 > |---|---|---|
