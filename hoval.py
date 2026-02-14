@@ -583,7 +583,7 @@ def watchdog_thread():
     Triggert einen Reconnect wenn keine Daten innerhalb von WATCHDOG_TIMEOUT Sekunden ankommen.
     """
     global last_data_time, current_socket
-    while True:
+    while not shutdown_requested:
         time.sleep(10)  # Prüfe alle 10 Sekunden
         if not WATCHDOG_ENABLED:
             continue

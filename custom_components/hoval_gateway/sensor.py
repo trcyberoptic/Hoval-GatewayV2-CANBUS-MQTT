@@ -65,11 +65,29 @@ class HovalSensor(CoordinatorEntity, SensorEntity):
         self._original_name = name
         self._unit = unit
 
-        # Normalize name for unique ID
-        clean_name = name.lower().replace(' ', '_')
-        clean_name = clean_name.replace('ä', 'ae').replace('ö', 'oe')
-        clean_name = clean_name.replace('ü', 'ue').replace('ß', 'ss')
-        clean_name = clean_name.replace('.', '').replace('/', '')
+        # Normalize name for unique ID (must match coordinator._update_sensor)
+        clean_name = (
+            name.replace(' ', '_')
+            .replace('ä', 'ae')
+            .replace('ö', 'oe')
+            .replace('ü', 'ue')
+            .replace('ß', 'ss')
+            .replace('.', '')
+            .replace('/', '_')
+            .replace('(', '')
+            .replace(')', '')
+            .replace('[', '')
+            .replace(']', '')
+            .replace('{', '')
+            .replace('}', '')
+            .replace("'", '')
+            .replace('"', '')
+            .replace('!', '')
+            .replace('?', '')
+            .replace('#', '')
+            .replace('+', '')
+            .lower()
+        )
         self._clean_name = clean_name
 
         self._attr_unique_id = f'{entry.entry_id}_{clean_name}'
